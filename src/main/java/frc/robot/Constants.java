@@ -7,10 +7,12 @@ package frc.robot;
 import com.pathplanner.lib.config.PIDConstants;
 import edu.wpi.first.math.geometry.*;
 import edu.wpi.first.math.util.Units;
-import edu.wpi.first.units.measure.Distance;
-import edu.wpi.first.units.measure.LinearVelocity;
+import edu.wpi.first.units.measure.*;
+import yams.gearing.MechanismGearing;
+import yams.gearing.gearbox.GearBox;
 
 import static edu.wpi.first.units.Units.*;
+import static yams.mechanisms.SmartMechanism.*;
 
 /**
  * The Constants class provides a convenient place for teams to hold robot-wide numerical or boolean constants. This
@@ -27,23 +29,45 @@ public final class Constants {
     }
 
     public static final class ArmConstants {
+        public static final int kArmMotorID = 12;
         public static final int kArmABSID = 1; // DIO
         public static final double kArmSpeed = 0.3;
-        public static final double kL1Setpoint = -20;
-        public static final double kL2Setpoint = -20;
-        public static final double kL3Setpoint = -20;
-        public static final double kL4Setpoint = -35;
-        public static final double kProcessorSetpoint = 0;
-        public static final double kStationSetpoint = 32;
-        public static final double kDealgae = -15;
-        public static final double kStowSetpoint = 70;
-        public static final double kAutoScoreToleranceDegrees = 1;
+        public static final Angle kL1Setpoint = Degrees.of(-20);
+        public static final Angle kL2Setpoint = Degrees.of(-20);
+        public static final Angle kL3Setpoint = Degrees.of(-20);
+        public static final Angle kL4Setpoint = Degrees.of(-35);
+        public static final Angle kProcessorSetpoint = Degrees.of(0);
+        public static final Angle kStationSetpoint = Degrees.of(32);
+        public static final Angle kDealgae = Degrees.of(-15);
+        public static final Angle kStowSetpoint = Degrees.of(70);
+
+        public static final double kKp = 2.026;
+        public static final double kKi = 0.0;
+        public static final double kKd = 0.092372;
+        public static final double kS = 0.012394;
+        public static final double kG = 0.019009;
+        public static final double kV = 0.12269;
+        public static final double kA = 0.0042372;
+        public static final AngularVelocity kMaxSpeed = DegreesPerSecond.of(180);
+        public static final AngularAcceleration kMaxAcceleration = DegreesPerSecondPerSecond.of(90);
+        public static final Angle kTopSoftLimit = Degrees.of(74);
+        public static final Angle kBottomSoftLimit = Degrees.of(-89);
+        public static final Angle kTopHardLimit = Degrees.of(75);
+        public static final Angle kBottomHardLimit = Degrees.of(-90);
+        public static final Time kRampRate = Seconds.of(0.5);
+        public static final Mass kArmMass = Pounds.of(5);
+        public static final Distance kArmLength = Inches.of(17);
+        public static final Angle kHorizontalZero = Degrees.of(-173);
+        public static final MechanismGearing kReduction = gearing(gearbox(GearBox.Type.MAX_PLANETARY, 5, 4, 3), sprocket(16, 38));
+
     }
 
     public static final class ElevatorConstants {
+        public static final int kRightMotorID = 14;
+        public static final int kLeftMotorID = 13;
         public static final int kBottomLimitPort = 2;
         public static final double kElevatorSpeed = .4;
-        public static final double kL1Setpoint = 10;
+        public static final Distance kL1Setpoint = Inches.of(10);
         public static final double kL2Setpoint = 6;
         public static final double kL3Setpoint = 25;
         public static final double kL4Setpoint = 60;
@@ -55,6 +79,24 @@ public final class Constants {
         public static final double kAutoScoreToleranceInches = .5;
         public static final double kBottomCarriageToArmInches = 32;
         public static final double kCenterToElevator = Units.inchesToMeters(10);
+
+        public static final double kKp = 38;
+        public static final double kKi = 1;
+        public static final double kKd = 0.01;
+        public static final double kS = 0.08;
+        public static final double kG = 0.25;
+        public static final double kV = 3.07;
+        public static final double kA = 0.01;
+        public static final AngularVelocity kMaxSpeed = DegreesPerSecond.of(180);
+        public static final AngularAcceleration kMaxAcceleration = DegreesPerSecondPerSecond.of(90);
+        public static final Distance kTopSoftLimit = Meters.of(Units.inchesToMeters(63.5));
+        public static final Distance kBottomSoftLimit = Meters.of(Units.inchesToMeters(0.5));
+        public static final Distance kTopHardLimit = Meters.of(Units.inchesToMeters(64));
+        public static final Distance kBottomHardLimit = Meters.of(Units.inchesToMeters(0));
+        public static final Time kRampRate = Seconds.of(0.5);
+        public static final Mass kMass = Kilograms.of(Units.lbsToKilograms(10));
+        public static final MechanismGearing kReduction = gearing(gearbox(GearBox.Type.VERSA_PLANETARY, 3, 5), sprocket(22, 22));
+        public static final Distance kSprocketCircumference = Inches.of(2 * Math.PI * 1); // 2 * PI * Radius = Circumference
     }
 
     public static final class IntakeShooterConstants {
@@ -67,6 +109,13 @@ public final class Constants {
         public static final double kShootAlgaeSpeed = 1;
         public static final double kIntakekG = .0;
         public static final double kPullBackInSpeed = .02;
+
+        public static final double kKp = 2;
+        public static final double kKi = 0.0;
+        public static final double kKd = 0.0;
+        public static final double kS = 0.1;
+        public static final double kV = 0.1;
+        public static final double kA = 0.00;
     }
 
     public static final class ClimberConstants {

@@ -29,6 +29,10 @@ public class BindingsSelector {
         Classic driver and operator with the driver using dual joysticks.
          */
         DUAL_STICK_XBOX,
+        /*
+        Control mode used for testing controls subject to constant change
+         */
+        TESTING
     }
 
 }
