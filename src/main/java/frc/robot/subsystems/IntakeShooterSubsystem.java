@@ -60,17 +60,6 @@ public class IntakeShooterSubsystem extends SubsystemBase {
     private final ArmSubsystem arm;
     private IntakeSimulation intakeSimulation = null;
 
-    StructArrayPublisher<Pose3d> coralPoses = NetworkTableInstance.getDefault()
-            .getTable("SmartDashboard")
-            .getStructArrayTopic("Coral Array",
-                    Pose3d.struct)
-            .publish();
-    StructArrayPublisher<Pose3d> algaePoses = NetworkTableInstance.getDefault()
-            .getTable("SmartDashboard")
-            .getStructArrayTopic("Algae Array",
-                    Pose3d.struct)
-            .publish();
-
     public IntakeShooterSubsystem(SwerveSubsystem drivebase, ElevatorSubsystem elevator, ArmSubsystem arm)
     {
         this.swerve = drivebase;
@@ -151,19 +140,6 @@ public class IntakeShooterSubsystem extends SubsystemBase {
         return
                 shootAlgae()
                         .until(algaeTrigger);
-    }
-
-    @Override
-    public void simulationPeriodic() {
-        // Get the positions of the notes (both on the field and in the air);
-        coralPoses.set(SimulatedArena.getInstance()
-                .getGamePiecesByType("Coral")
-                .toArray(Pose3d[]::new)
-        );
-        algaePoses.set(SimulatedArena.getInstance()
-                .getGamePiecesByType("Algae")
-                .toArray(Pose3d[]::new)
-        );
     }
 
     public void addSimCoralToIntake() {

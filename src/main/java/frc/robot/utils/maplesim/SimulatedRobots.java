@@ -1,4 +1,4 @@
-package frc.robot.subsystems;
+package frc.robot.utils.maplesim;
 
 
 import com.pathplanner.lib.commands.FollowPathCommand;
@@ -19,8 +19,6 @@ import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.XboxController;
-import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -29,15 +27,10 @@ import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
-import frc.robot.Constants;
-import frc.robot.subsystems.swerve.SwerveSubsystem;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SelfControlledSwerveDriveSimulation;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
-import org.ironmaple.simulation.drivesims.SwerveModuleSimulation;
 import org.ironmaple.simulation.drivesims.configs.DriveTrainSimulationConfig;
-import org.ironmaple.simulation.gamepieces.GamePieceProjectile;
-import org.ironmaple.simulation.seasonspecific.crescendo2024.NoteOnFly;
 import org.ironmaple.simulation.seasonspecific.reefscape2025.ReefscapeAlgaeOnFly;
 import org.ironmaple.simulation.seasonspecific.reefscape2025.ReefscapeCoralOnFly;
 import org.ironmaple.utils.FieldMirroringUtils;
@@ -46,7 +39,7 @@ import java.util.function.Supplier;
 
 import static edu.wpi.first.units.Units.*;
 
-public class MapleSimSubsystem extends SubsystemBase {
+public class SimulatedRobots extends SubsystemBase {
     private static final double opponentMassKG = 55;
     private static final double opponentMOI = 8;
     private static final double opponentWheelRadius = Units.inchesToMeters(2);
@@ -103,7 +96,7 @@ public class MapleSimSubsystem extends SubsystemBase {
     private final int id;
     private final String alliance;
 
-    public MapleSimSubsystem(int id, String alliance) {
+    public SimulatedRobots(int id, String alliance) {
         this.id = id;
         this.alliance = alliance;
         this.queeningPose = ROBOT_QUEENING_POSITIONS[id];
@@ -125,11 +118,11 @@ public class MapleSimSubsystem extends SubsystemBase {
         posePublisher.set(driveSimulation.getActualPoseInSimulationWorld());
     }
 
-    public static final MapleSimSubsystem[] instances = new MapleSimSubsystem[2]; // you can create as many opponent robots as you needs
+    public static final SimulatedRobots[] instances = new SimulatedRobots[2]; // you can create as many opponent robots as you needs
 
     public static void startOpponentRobotSimulations() {
         try {
-            instances[0] = new MapleSimSubsystem(0, "Red Alliance ");
+            instances[0] = new SimulatedRobots(0, "Red Alliance ");
             instances[0].buildBehaviorChooser(
                     PathPlannerPath.fromPathFile("Opponent Left Cycle 0"),
                     instances[0].coralFeedShot(),
@@ -137,7 +130,7 @@ public class MapleSimSubsystem extends SubsystemBase {
                     Commands.none(),
                     new CommandXboxController(3));
 
-            instances[1] = new MapleSimSubsystem(1, "Red Alliance ");
+            instances[1] = new SimulatedRobots(1, "Red Alliance ");
             instances[1].buildBehaviorChooser(
                     PathPlannerPath.fromPathFile("Opponent Right Cycle 1"),
                     instances[1].algaeFeedShot(),
