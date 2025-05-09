@@ -156,6 +156,7 @@ public class PoseSelector extends SubsystemBase {
         stationSlot = StationSlot.POSE_1;
         updateStationPose();
     }
+
     /**
      * Selects slot 2 for coral station and cages.
      */
@@ -163,6 +164,7 @@ public class PoseSelector extends SubsystemBase {
         stationSlot = StationSlot.POSE_2;
         updateStationPose();
     }
+
     /**
      * Selects slot 3 for coral station and cages.
      */

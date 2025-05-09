@@ -9,6 +9,7 @@ import edu.wpi.first.wpilibj.DutyCycleEncoder;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
+import frc.robot.utils.Telemetry;
 import yams.mechanisms.config.ArmConfig;
 import yams.mechanisms.positional.Arm;
 import yams.motorcontrollers.SmartMotorController;
@@ -16,13 +17,11 @@ import yams.motorcontrollers.SmartMotorControllerConfig;
 import yams.motorcontrollers.local.SparkWrapper;
 
 import static edu.wpi.first.units.Units.*;
-import static edu.wpi.first.units.Units.Second;
 
-public class ArmSubsystem extends SubsystemBase
-{
-    private SparkMax armMotor = new SparkMax(Constants.ArmConstants.kArmMotorID, SparkLowLevel.MotorType.kBrushless);
+public class ArmSubsystem extends SubsystemBase {
     private final DutyCycleEncoder armABS = new DutyCycleEncoder(Constants.ArmConstants.kArmABSID);
-    private SmartMotorControllerConfig motorConfig = new SmartMotorControllerConfig(this)
+    private final SparkMax armMotor = new SparkMax(Constants.ArmConstants.kArmMotorID, SparkLowLevel.MotorType.kBrushless);
+    private final SmartMotorControllerConfig motorConfig = new SmartMotorControllerConfig(this)
             .withClosedLoopController(
                     Constants.ArmConstants.kKp,
                     Constants.ArmConstants.kKi,
@@ -35,9 +34,10 @@ public class ArmSubsystem extends SubsystemBase
                     Constants.ArmConstants.kV,
                     Constants.ArmConstants.kA))
             .withGearing(Constants.ArmConstants.kReduction)
+//            .withExternalEncoder(armABS) Not yet supported current support is limited to attached encoders.
             .withSoftLimit(Constants.ArmConstants.kBottomSoftLimit, Constants.ArmConstants.kTopSoftLimit)
             .withIdleMode(SmartMotorControllerConfig.MotorMode.BRAKE)
-            .withTelemetry("ArmMotor", SmartMotorControllerConfig.TelemetryVerbosity.HIGH)
+            .withTelemetry("Motor", Telemetry.armVerbosity)
             .withStatorCurrentLimit(Amps.of(40))
             .withMotorInverted(false)
             .withClosedLoopRampRate(Constants.ArmConstants.kRampRate)
@@ -47,15 +47,14 @@ public class ArmSubsystem extends SubsystemBase
     private ArmConfig armConfig = new ArmConfig(motor)
             .withLength(Constants.ArmConstants.kArmLength)
             .withHardLimit(Constants.ArmConstants.kBottomHardLimit, Constants.ArmConstants.kTopHardLimit)
-            .withTelemetry("Arm", SmartMotorControllerConfig.TelemetryVerbosity.HIGH)
+            .withTelemetry("RobotTelemetry/Arm", Telemetry.armVerbosity)
             .withMass(Constants.ArmConstants.kArmMass)
             .withStartingPosition(Degrees.of(0))
             .withHorizontalZero(Constants.ArmConstants.kHorizontalZero);
     private Arm arm = new Arm(armConfig);
 
-    public ArmSubsystem()
-    {
-        motor.setPosition(Degrees.of(armABS.get())); // Temp until DutyCycleEncoders are supported
+    public ArmSubsystem() {
+        motor.setPosition(Degrees.of(armABS.get())); // Temp until rev through bores are supported
     }
 
     @Override
@@ -69,33 +68,27 @@ public class ArmSubsystem extends SubsystemBase
     }
 
 
-    public Command goUp()
-    {
+    public Command goUp() {
         return arm.set(Constants.ArmConstants.kArmSpeed);
     }
 
-    public Command goDown()
-    {
+    public Command goDown() {
         return arm.set(-Constants.ArmConstants.kArmSpeed);
     }
 
-    public Command toL1()
-    {
+    public Command toL1() {
         return arm.setAngle(Constants.ArmConstants.kL1Setpoint);
     }
 
-    public Command toL2()
-    {
+    public Command toL2() {
         return arm.setAngle(Constants.ArmConstants.kL2Setpoint);
     }
 
-    public Command toL3()
-    {
+    public Command toL3() {
         return arm.setAngle(Constants.ArmConstants.kL3Setpoint);
     }
 
-    public Command toL4()
-    {
+    public Command toL4() {
         return arm.setAngle(Constants.ArmConstants.kL4Setpoint);
     }
 
@@ -103,8 +96,7 @@ public class ArmSubsystem extends SubsystemBase
         return arm.getAngle();
     }
 
-    public Command sysId()
-    {
+    public Command sysId() {
         return arm.sysId(Volts.of(3), Volts.of(3).per(Second), Second.of(30));
     }
 }

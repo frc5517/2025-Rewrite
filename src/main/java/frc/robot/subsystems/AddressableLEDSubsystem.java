@@ -12,10 +12,9 @@ import frc.robot.Constants;
 import static edu.wpi.first.units.Units.MetersPerSecond;
 
 public class AddressableLEDSubsystem extends SubsystemBase {
-
+    public final LEDPattern rainbow = LEDPattern.rainbow(255, 128);
     private final AddressableLED led = new AddressableLED(Constants.AddressableConstants.kLedPort);
     private final AddressableLEDBuffer buffer = new AddressableLEDBuffer(320);
-    public final LEDPattern rainbow = LEDPattern.rainbow(255, 128);
     private final AddressableLEDBufferView underGlow = buffer.createView(0, 100);
     private final AddressableLEDBufferView elevatorGlow = buffer.createView(101, 319);
     private LEDPattern elevatorPattern = LEDPattern.solid(editColor(Color.kPurple));

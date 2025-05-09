@@ -6,6 +6,7 @@ import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.system.plant.DCMotor;
+import edu.wpi.first.networktables.BooleanPublisher;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructArrayPublisher;
 import edu.wpi.first.wpilibj.DigitalInput;
@@ -18,6 +19,7 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.Constants;
 import frc.robot.Constants.IntakeShooterConstants;
 import frc.robot.subsystems.swerve.SwerveSubsystem;
+import frc.robot.utils.Telemetry;
 import org.ironmaple.simulation.IntakeSimulation;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.seasonspecific.reefscape2025.ReefscapeCoralOnFly;
@@ -27,41 +29,39 @@ import yams.motorcontrollers.SmartMotorControllerConfig;
 import yams.motorcontrollers.local.SparkWrapper;
 
 import static edu.wpi.first.units.Units.*;
+import static frc.robot.utils.Telemetry.algaeSensorPublisher;
+import static frc.robot.utils.Telemetry.coralSensorPublisher;
 import static yams.mechanisms.SmartMechanism.*;
 
 public class IntakeShooterSubsystem extends SubsystemBase {
 
-    private SparkMax intakeShooterMotor = new SparkMax(IntakeShooterConstants.kMotorID, SparkLowLevel.MotorType.kBrushless);
-    private SmartMotorControllerConfig motorConfig = new SmartMotorControllerConfig(this)
+    private final SparkMax intakeShooterMotor = new SparkMax(IntakeShooterConstants.kMotorID, SparkLowLevel.MotorType.kBrushless);
+    private final SmartMotorControllerConfig motorConfig = new SmartMotorControllerConfig(this)
             .withIdleMode(SmartMotorControllerConfig.MotorMode.BRAKE)
             .withMechanismCircumference(Constants.ElevatorConstants.kSprocketCircumference)
-            .withGearing(gearing(gearbox(GearBox.Type.VERSA_PLANETARY, 9, 3), sprocket( 12, 28)))
+            .withGearing(gearing(gearbox(GearBox.Type.VERSA_PLANETARY, 9, 3), sprocket(12, 28)))
             .withClosedLoopController(
                     IntakeShooterConstants.kKp,
                     IntakeShooterConstants.kKi,
                     IntakeShooterConstants.kKd)
             .withFeedforward(new SimpleMotorFeedforward(
                     IntakeShooterConstants.kS, IntakeShooterConstants.kV, IntakeShooterConstants.kA))
-            .withTelemetry("IntakeShooterMotor", SmartMotorControllerConfig.TelemetryVerbosity.HIGH)
+            .withTelemetry("Motor", Telemetry.intakeShooterVerbosity)
             .withStatorCurrentLimit(Amps.of(30))
             .withVoltageCompensation(Volts.of(12))
             .withControlMode(SmartMotorControllerConfig.ControlMode.CLOSED_LOOP);
-    private SmartMotorController motor = new SparkWrapper(intakeShooterMotor, DCMotor.getNEO(1), motorConfig);
-
     private final DigitalInput coralSensor = new DigitalInput(IntakeShooterConstants.kCoralSensorID);
     private final DigitalInput algaeSensor = new DigitalInput(IntakeShooterConstants.kAlgaeSensorID);
-
-    private Trigger coralTrigger = new Trigger(coralSensor::get);
     private final Trigger algaeTrigger = new Trigger(() -> !algaeSensor.get());
-
     // Maple sim stuff
     private final SwerveSubsystem swerve;
     private final ElevatorSubsystem elevator;
     private final ArmSubsystem arm;
+    private SmartMotorController motor = new SparkWrapper(intakeShooterMotor, DCMotor.getNEO(1), motorConfig);
+    private Trigger coralTrigger = new Trigger(coralSensor::get);
     private IntakeSimulation intakeSimulation = null;
 
-    public IntakeShooterSubsystem(SwerveSubsystem drivebase, ElevatorSubsystem elevator, ArmSubsystem arm)
-    {
+    public IntakeShooterSubsystem(SwerveSubsystem drivebase, ElevatorSubsystem elevator, ArmSubsystem arm) {
         this.swerve = drivebase;
         this.elevator = elevator;
         this.arm = arm;
@@ -70,24 +70,26 @@ public class IntakeShooterSubsystem extends SubsystemBase {
             this.intakeSimulation = IntakeSimulation.InTheFrameIntake(
                     "Coral",
                     drivebase.getMapleDrive(),
-                    Inches.of(5),
+                    Inches.of(10),
                     IntakeSimulation.IntakeSide.FRONT,
                     1
             );
-            SimulatedArena.getInstance().resetFieldForAuto();
             coralTrigger = new Trigger(() -> intakeSimulation.getGamePiecesAmount() > 0);
         }
     }
 
     @Override
     public void periodic() {
-        // This method will be called once per scheduler run
-        SmartDashboard.putBoolean("Coral Trigger", coralTrigger.getAsBoolean());
+        if (Telemetry.robotVerbosity.ordinal() >= Telemetry.RobotTelemetry.LOW.ordinal()) {
+            coralSensorPublisher.set(coralTrigger.getAsBoolean());
+            algaeSensorPublisher.set(algaeTrigger.getAsBoolean());
+        }
     }
 
     public Command intake() {
         return RobotBase.isSimulation() ?
-                Commands.runOnce(this::addSimCoralToIntake) :
+                Commands.runEnd(() -> intakeSimulation.startIntake(),
+                        () -> intakeSimulation.stopIntake()) :
                 Commands.runEnd(() -> motor.setDutyCycle(-IntakeShooterConstants.kIntakeSpeed),
                         () -> motor.setDutyCycle(0.0));
     }
@@ -170,6 +172,7 @@ public class IntakeShooterSubsystem extends SubsystemBase {
                                 // The coral is ejected at a 35-degree slope
                                 arm.getAngle()));
                 intakeSimulation.setGamePiecesCount(0);
-            }});
+            }
+        });
     }
 }

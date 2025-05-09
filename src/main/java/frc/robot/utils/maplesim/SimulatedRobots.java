@@ -40,6 +40,22 @@ import java.util.function.Supplier;
 import static edu.wpi.first.units.Units.*;
 
 public class SimulatedRobots extends SubsystemBase {
+    /* If an opponent robot is not on the field, it is placed in a queening position for performance. */
+    public static final Pose2d[] ROBOT_QUEENING_POSITIONS = new Pose2d[]{
+            new Pose2d(-6, 0, new Rotation2d()),
+            new Pose2d(-5, 0, new Rotation2d()),
+            new Pose2d(-4, 0, new Rotation2d()),
+            new Pose2d(-3, 0, new Rotation2d()),
+            new Pose2d(-2, 0, new Rotation2d())
+    };
+    public static final Pose2d[] ROBOTS_STARTING_POSITIONS = new Pose2d[]{
+            new Pose2d(15, 6, Rotation2d.fromDegrees(180)),
+            new Pose2d(15, 4, Rotation2d.fromDegrees(180)),
+            new Pose2d(15, 2, Rotation2d.fromDegrees(180)),
+            new Pose2d(1.6, 6, new Rotation2d()),
+            new Pose2d(1.6, 4, new Rotation2d())
+    };
+    public static final SimulatedRobots[] instances = new SimulatedRobots[2]; // This should match the count of simulated robots starts at 1 not 0.
     private static final double opponentMassKG = 55;
     private static final double opponentMOI = 8;
     private static final double opponentWheelRadius = Units.inchesToMeters(2);
@@ -47,13 +63,11 @@ public class SimulatedRobots extends SubsystemBase {
     private static final double opponentDriveCOF = 1.19;
     private static final DCMotor opponentDriveMotor = DCMotor.getNEO(1)
             .withReduction(8.14);
+    // Game piece setup is below
     private static final double opponentDriveCurrentLimit = 40;
     private static final int opponentNumDriveMotors = 1;
     private static final double opponentTrackWidth = Units.inchesToMeters(23);
-    // Game piece setup is below
-
     private static final DriveTrainSimulationConfig driveConfig = DriveTrainSimulationConfig.Default();
-
     // PathPlanner configuration
     private static final RobotConfig pathplannerConfig = new RobotConfig(
             opponentMassKG,
@@ -67,34 +81,14 @@ public class SimulatedRobots extends SubsystemBase {
                     opponentNumDriveMotors),
             opponentTrackWidth
     );
-
-    /* If an opponent robot is not on the field, it is placed in a queening position for performance. */
-    public static final Pose2d[] ROBOT_QUEENING_POSITIONS = new Pose2d[] {
-            new Pose2d(-6, 0, new Rotation2d()),
-            new Pose2d(-5, 0, new Rotation2d()),
-            new Pose2d(-4, 0, new Rotation2d()),
-            new Pose2d(-3, 0, new Rotation2d()),
-            new Pose2d(-2, 0, new Rotation2d())
-    };
-
-    public static final Pose2d[] ROBOTS_STARTING_POSITIONS = new Pose2d[] {
-            new Pose2d(15, 6, Rotation2d.fromDegrees(180)),
-            new Pose2d(15, 4, Rotation2d.fromDegrees(180)),
-            new Pose2d(15, 2, Rotation2d.fromDegrees(180)),
-            new Pose2d(1.6, 6, new Rotation2d()),
-            new Pose2d(1.6, 4, new Rotation2d())
-    };
-
     // PathPlanner PID settings
     private final PPHolonomicDriveController driveController =
             new PPHolonomicDriveController(new PIDConstants(5.0, 0.02), new PIDConstants(7.0, 0.05));
-
-    StructPublisher<Pose2d> posePublisher;
-
     private final SelfControlledSwerveDriveSimulation driveSimulation;
     private final Pose2d queeningPose;
     private final int id;
     private final String alliance;
+    StructPublisher<Pose2d> posePublisher;
 
     public SimulatedRobots(int id, String alliance) {
         this.id = id;
@@ -113,13 +107,6 @@ public class SimulatedRobots extends SubsystemBase {
         );
     }
 
-    @Override
-    public void periodic() {
-        posePublisher.set(driveSimulation.getActualPoseInSimulationWorld());
-    }
-
-    public static final SimulatedRobots[] instances = new SimulatedRobots[2]; // you can create as many opponent robots as you needs
-
     public static void startOpponentRobotSimulations() {
         try {
             instances[0] = new SimulatedRobots(0, "Red Alliance ");
@@ -137,13 +124,20 @@ public class SimulatedRobots extends SubsystemBase {
                     PathPlannerPath.fromPathFile("Opponent Right Cycle Back 1"),
                     Commands.none(),
                     new CommandXboxController(4));
-        // create more opponent robots if you need
+            // create more opponent robots if you need
         } catch (Exception e) {
             DriverStation.reportError("Failed to load opponent robot simulation paths, error: " + e.getMessage(), false);
         }
     }
 
-    /** Joystick drive command for opponent robots */
+    @Override
+    public void periodic() {
+        posePublisher.set(driveSimulation.getActualPoseInSimulationWorld());
+    }
+
+    /**
+     * Joystick drive command for opponent robots
+     */
     private Command joystickDrive(CommandXboxController joystick) {
         // Obtain chassis speeds from joystick input
         final Supplier<ChassisSpeeds> joystickSpeeds = () -> new ChassisSpeeds(
@@ -170,7 +164,9 @@ public class SimulatedRobots extends SubsystemBase {
                         FieldMirroringUtils.toCurrentAlliancePose(ROBOTS_STARTING_POSITIONS[id])));
     }
 
-    /** Follow path command for opponent robots */
+    /**
+     * Follow path command for opponent robots
+     */
     private Command opponentRobotFollowPath(PathPlannerPath path) {
         return new FollowPathCommand(
                 path, // Specify the path
@@ -191,7 +187,9 @@ public class SimulatedRobots extends SubsystemBase {
         );
     }
 
-    /** Build the behavior chooser of this opponent robot and send it to the dashboard */
+    /**
+     * Build the behavior chooser of this opponent robot and send it to the dashboard
+     */
     public void buildBehaviorChooser(
             PathPlannerPath segment0,
             Command toRunAtEndOfSegment0,
@@ -228,7 +226,9 @@ public class SimulatedRobots extends SubsystemBase {
         SmartDashboard.putData("MapleSim/SimulatedRobots/Behaviors/ " + alliance + id + " Behavior", behaviorChooser);
     }
 
-    /** Get the command to auto-cycle the robot relatively */
+    /**
+     * Get the command to auto-cycle the robot relatively
+     */
     private Command getAutoCycleCommand(
             PathPlannerPath segment0,
             Command toRunAtEndOfSegment0,
@@ -249,6 +249,9 @@ public class SimulatedRobots extends SubsystemBase {
                         FieldMirroringUtils.toCurrentAlliancePose(startingPose))));
     }
 
+    /**
+     * @return A command to be used by simulated robots to launch coral according to set values.
+     */
     private Command coralFeedShot() {
         // Setup to match kitbot
         // Coral Settings
@@ -279,6 +282,9 @@ public class SimulatedRobots extends SubsystemBase {
         });
     }
 
+    /**
+     * @return A command to be used by simulated robots to launch algae according to set values.
+     */
     private Command algaeFeedShot() {
         // Algae settings
         Distance shootHeight = Meters.of(3);

@@ -466,11 +466,9 @@ public class Vision {
         /**
          * Update the latest results, cached with a maximum refresh rate of 1req/15ms. Sorts the list by timestamp.
          */
-        private void updateUnreadResults()
-        {
+        private void updateUnreadResults() {
             double mostRecentTimestamp = resultsList.isEmpty() ? 0.0 : resultsList.get(0).getTimestampSeconds();
-            for (PhotonPipelineResult result : resultsList)
-            {
+            for (PhotonPipelineResult result : resultsList) {
                 mostRecentTimestamp = Math.max(mostRecentTimestamp, result.getTimestampSeconds());
             }
 
@@ -478,8 +476,7 @@ public class Vision {
             resultsList.sort((PhotonPipelineResult a, PhotonPipelineResult b) -> {
                 return a.getTimestampSeconds() >= b.getTimestampSeconds() ? 1 : -1;
             });
-            if (!resultsList.isEmpty())
-            {
+            if (!resultsList.isEmpty()) {
                 updateEstimatedGlobalPose();
             }
 
@@ -495,11 +492,9 @@ public class Vision {
          * @return An {@link EstimatedRobotPose} with an estimated pose, estimate timestamp, and targets used for
          * estimation.
          */
-        private void updateEstimatedGlobalPose()
-        {
+        private void updateEstimatedGlobalPose() {
             Optional<EstimatedRobotPose> visionEst = Optional.empty();
-            for (var change : resultsList)
-            {
+            for (var change : resultsList) {
                 visionEst = poseEstimator.update(change);
                 updateEstimationStdDevs(visionEst, change.getTargets());
             }

@@ -35,6 +35,7 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Config;
 import frc.robot.Constants;
 import frc.robot.utils.PoseSelector;
+import frc.robot.utils.Telemetry;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
 import org.json.simple.parser.ParseException;
 import swervelib.SwerveController;
@@ -87,7 +88,7 @@ public class SwerveSubsystem extends SubsystemBase {
                 Meter.of(4)),
                 Rotation2d.fromDegrees(180));
         // Configure the Telemetry before creating the SwerveDrive to avoid unnecessary objects being created.
-        SwerveDriveTelemetry.verbosity = TelemetryVerbosity.HIGH;
+        SwerveDriveTelemetry.verbosity = Telemetry.swerveVerbosity;
         try {
             swerveDrive = new SwerveParser(directory).createSwerveDrive(Constants.DrivebaseConstants.MAX_SPEED, startingPose);
             // Alternative method if you don't want to supply the conversion factor via JSON files.
@@ -304,6 +305,7 @@ public class SwerveSubsystem extends SubsystemBase {
                         Constants.DrivebaseConstants.kDriveToStation
                 ), Set.of(this));
     }
+
     public Trigger atStation(PoseSelector poseSelector) {
         return new Trigger(() ->
                 poseIsNear(
@@ -313,6 +315,7 @@ public class SwerveSubsystem extends SubsystemBase {
                         Constants.DrivebaseConstants.kRotationTolerance
                 ));
     }
+
     public Command driveToProcessor(PoseSelector poseSelector) {
         return Commands.defer(() ->
                 driveToPose(
@@ -320,6 +323,7 @@ public class SwerveSubsystem extends SubsystemBase {
                         Constants.DrivebaseConstants.kDriveToProcessor
                 ), Set.of(this));
     }
+
     public Trigger atProcessor(PoseSelector poseSelector) {
         return new Trigger(() ->
                 poseIsNear(
@@ -329,6 +333,7 @@ public class SwerveSubsystem extends SubsystemBase {
                         Constants.DrivebaseConstants.kRotationTolerance
                 ));
     }
+
     public Command driveToAlgae(PoseSelector poseSelector) {
         return Commands.defer(() ->
                 driveToPose(
@@ -336,6 +341,7 @@ public class SwerveSubsystem extends SubsystemBase {
                         Constants.DrivebaseConstants.kDriveToAlgae
                 ), Set.of(this));
     }
+
     public Trigger atAlgae(PoseSelector poseSelector) {
         return new Trigger(() ->
                 poseIsNear(
@@ -345,6 +351,7 @@ public class SwerveSubsystem extends SubsystemBase {
                         Constants.DrivebaseConstants.kRotationTolerance
                 ));
     }
+
     public Command driveToCage(PoseSelector poseSelector) {
         return Commands.defer(() ->
                 driveToPose(
@@ -352,6 +359,7 @@ public class SwerveSubsystem extends SubsystemBase {
                         Constants.DrivebaseConstants.kDriveToCage
                 ), Set.of(this));
     }
+
     public Trigger atCage(PoseSelector poseSelector) {
         return new Trigger(() ->
                 poseIsNear(
@@ -399,9 +407,8 @@ public class SwerveSubsystem extends SubsystemBase {
                         expected,
                         actual,
                         toleranceMeters) &&
-                Math.abs(expectedRotation - actualRotation) < toleranceDegrees;
+                        Math.abs(expectedRotation - actualRotation) < toleranceDegrees;
     }
-
 
 
     /**
