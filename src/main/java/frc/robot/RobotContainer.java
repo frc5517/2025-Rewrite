@@ -26,7 +26,7 @@ import frc.robot.utils.maplesim.MapleSim;
 import swervelib.SwerveInputStream;
 
 import java.io.File;
-import java.util.Set;
+import java.util.Map;
 
 
 public class RobotContainer {
@@ -53,6 +53,7 @@ public class RobotContainer {
             .allianceRelativeControl(false)
             .translationHeadingOffset(Rotation2d.k180deg);
     Command driveXboxCommand = swerve.driveFieldOriented(xboxStream);
+    private SendableChooser<Command> autoChooser;
 
     public RobotContainer() {
         DriverStation.silenceJoystickConnectionWarning(true);
@@ -70,6 +71,10 @@ public class RobotContainer {
         bindingSendable.setDefaultOption("Testing", BindingsSelector.BindingType.TESTING);
         SmartDashboard.putData("Control Type", bindingSendable);
     }
+
+//
+//  Autonomous stuff
+//
 
     public void configureBindings() {
         // Always on controls
@@ -169,6 +174,7 @@ public class RobotContainer {
         Trigger isTesting = new Trigger(() -> bindingSendable.getSelected() == BindingsSelector.BindingType.TESTING);
 
         isTesting.and(driverXbox.start()).onTrue(Commands.runOnce(() -> MapleSim.addCoralAllStations(false)));
+        isTesting.and(driverXbox.back()).onTrue(Commands.runOnce(MapleSim::clearMatchData));
 
         isTesting.and(driverXbox.a()).whileTrue(arm.toL1().alongWith(elevator.toL1()));
         isTesting.and(driverXbox.b()).whileTrue(arm.toL2());
@@ -181,12 +187,6 @@ public class RobotContainer {
         isTesting.and(driverXbox.leftBumper()).whileTrue(intakeShooter.intake());
         isTesting.and(driverXbox.rightBumper()).whileTrue(intakeShooter.shoot());
     }
-
-//
-//  Autonomous stuff
-//
-
-    private SendableChooser<Command> autoChooser;
 
     public void setupAutonomous() {
 //        NamedCommands.registerCommand("structuresToL1", superStructure.structureToL1());

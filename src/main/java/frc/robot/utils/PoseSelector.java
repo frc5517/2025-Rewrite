@@ -3,12 +3,12 @@ package frc.robot.utils;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.units.measure.MutAngle;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
 import frc.robot.subsystems.swerve.SwerveSubsystem;
 
 import static edu.wpi.first.units.Units.Degrees;
+import static frc.robot.utils.Telemetry.*;
 
 public class PoseSelector extends SubsystemBase {
 
@@ -30,15 +30,14 @@ public class PoseSelector extends SubsystemBase {
 
     @Override
     public void periodic() {
-        SmartDashboard.putString("Reef Pose", reefPose.toString());
-        SmartDashboard.putString("Reef Side", reefSide.toString());
-        SmartDashboard.putString("Reef Branch", leftOrRight.toString());
-        SmartDashboard.putNumber("Reef Selected Pose", selectedPose.in(Degrees));
+        selectedReefPosePublisher.set(reefPose.toString());
+        selectedReefSidePublisher.set(reefSide.toString());
+        selectedReefBranchPublisher.set(leftOrRight.toString());
+        selectedReefPoseCompassPublisher.set(selectedPose.in(Degrees));
 
-        SmartDashboard.putString("Station Slot", stationSlot.toString());
-        SmartDashboard.putString("Station Pose", flippedStationPose().toString());
-
-        SmartDashboard.putString("Reef Pose2d", flippedReefPose().toString());
+        selectedStationPosePublisher.set(stationPose.toString());
+        selectedStationSlotPublisher.set(stationSlot.toString());
+        selectedStationSidePublisher.set(leftOrRight.toString());
     }
 
     /**
