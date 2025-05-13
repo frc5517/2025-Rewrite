@@ -100,6 +100,7 @@ public class SimulatedRobots extends SubsystemBase {
     private final Pose2d queeningPose;
     private final int id;
     private final StructPublisher<Pose2d> posePublisher;
+    private int branch;
 
     public SimulatedRobots(int id, DriverStation.Alliance alliance) {
         this.id = id;
@@ -113,7 +114,7 @@ public class SimulatedRobots extends SubsystemBase {
                 .getStructTopic("SmartDashboard/MapleSim/SimulatedRobots/Poses/ "
                         + (alliance.equals(DriverStation.Alliance.Red) ? "Red Alliance " : "Blue Alliance ")
                         + id + " Pose", Pose2d.struct).publish();
-
+        this.branch = ((int) Math.round(Math.random() * 17));
         SimulatedArena.getInstance().addDriveTrainSimulation(
                 driveSimulation.getDriveTrainSimulation());
     }
@@ -190,50 +191,6 @@ public class SimulatedRobots extends SubsystemBase {
         );
     }
 
-    private Command simRobotPathfindFromPath(Supplier<Pose2d> poseSupplier, PathConstraints pathConstraints) {
-        Transform2d transform1 = new Transform2d(
-                Units.inchesToMeters(-24),
-                0,
-                Rotation2d.kZero
-        );
-        Transform2d transform2 = new Transform2d(
-                Units.inchesToMeters(-12),
-                0,
-                Rotation2d.kZero
-        );
-        List<Waypoint> waypoints = PathPlannerPath.waypointsFromPoses(
-                poseSupplier.get().plus(transform1),
-                poseSupplier.get().plus(transform2),
-                poseSupplier.get()
-        );
-        PathPlannerPath path = new PathPlannerPath(
-                waypoints,
-                pathConstraints,
-                null,
-                new GoalEndState(0.0,
-                        poseSupplier.get().getRotation())
-        );
-        return new PathfindThenFollowPath(
-                path, // Specify the path
-                // Limits to abide by
-                pathConstraints,
-                // Provide actual robot pose in simulation, bypassing odometry error
-                driveSimulation::getActualPoseInSimulationWorld,
-                // Provide actual robot speed in simulation, bypassing encoder measurement error
-                driveSimulation::getActualSpeedsRobotRelative,
-                // Chassis speeds output
-                (speeds, feedforwards) ->
-                        driveSimulation.runChassisSpeeds(speeds, new Translation2d(), false, false),
-                driveController, // Specify PID controller
-                pathplannerConfig,       // Specify robot configuration
-                // Flip path based on alliance side
-                () -> DriverStation.getAlliance()
-                        .orElse(DriverStation.Alliance.Blue)
-                        .equals(DriverStation.Alliance.Red),
-                this // AIRobotInSimulation is a subsystem; this command should use it as a requirement
-        );
-    }
-
     /**
      * Build the behavior chooser of this opponent robot and send it to the dashboard
      */
@@ -251,7 +208,7 @@ public class SimulatedRobots extends SubsystemBase {
 
         // Option to auto-cycle random
         behaviorChooser.addOption(
-                "Auto Cycle Random", getAICycleCommand());
+                "Auto Cycle Random", simRobotPathfindFromPath());
 
 //        // Option to auto-cycle the robot
 //        behaviorChooser.addOption(
@@ -296,11 +253,88 @@ public class SimulatedRobots extends SubsystemBase {
                         FieldMirroringUtils.toCurrentAlliancePose(startingPose))));
     }
 
-    private Command getAICycleCommand() {
-        final SequentialCommandGroup cycle = new SequentialCommandGroup();
-        int branch = ((int) Math.round(Math.random() * 17));
+    private Command simRobotPathfindFromPath() {
+        return new PathfindThenFollowPath(
+                pathFromPose(getStationPose()), // Specify the path
+                // Limits to abide by
+                getPathConstraints(),
+                // Provide actual robot pose in simulation, bypassing odometry error
+                driveSimulation::getActualPoseInSimulationWorld,
+                // Provide actual robot speed in simulation, bypassing encoder measurement error
+                driveSimulation::getActualSpeedsRobotRelative,
+                // Chassis speeds output
+                (speeds, feedforwards) ->
+                        driveSimulation.runChassisSpeeds(speeds, Translation2d.kZero, false, false),
+                driveController, // Specify PID controller
+                pathplannerConfig,       // Specify robot configuration
+                // Flip path based on alliance side
+                () -> DriverStation.getAlliance()
+                        .orElse(DriverStation.Alliance.Blue)
+                        .equals(DriverStation.Alliance.Red),
+                this // AIRobotInSimulation is a subsystem; this command should use it as a requirement
+        ).andThen(
+                new PathfindThenFollowPath(
+                        pathFromPose(getTargetPose()), // Specify the path
+                        // Limits to abide by
+                        getPathConstraints(),
+                        // Provide actual robot pose in simulation, bypassing odometry error
+                        driveSimulation::getActualPoseInSimulationWorld,
+                        // Provide actual robot speed in simulation, bypassing encoder measurement error
+                        driveSimulation::getActualSpeedsRobotRelative,
+                        // Chassis speeds output
+                        (speeds, feedforwards) ->
+                                driveSimulation.runChassisSpeeds(speeds, Translation2d.kZero, false, false),
+                        driveController, // Specify PID controller
+                        pathplannerConfig,       // Specify robot configuration
+                        // Flip path based on alliance side
+                        () -> DriverStation.getAlliance()
+                                .orElse(DriverStation.Alliance.Blue)
+                                .equals(DriverStation.Alliance.Red),
+                        this // AIRobotInSimulation is a subsystem; this command should use it as a requirement
+        )).andThen(branch >= 12 ? algaeFeedShot(alliance) : coralFeedShot())
+                .repeatedly()
+                .beforeStarting(Commands.runOnce(() -> driveSimulation.setSimulationWorldPose(
+                        ifShouldFlip(ROBOTS_STARTING_POSITIONS[id]))));
+    }
+
+//    private Command getAICycleCommand() {
+//        final SequentialCommandGroup cycle = new SequentialCommandGroup();
+//        cycle.addCommands(
+//                simRobotPathfindFromPath(getStationPose(), getPathConstraints()).withTimeout(6));
+//        cycle.addCommands(
+//                simRobotPathfindFromPath(getTargetPose(), getPathConstraints()).withTimeout(6));
+//        cycle.addCommands(
+//                branch >= 12 ? algaeFeedShot(alliance) : coralFeedShot());
+//        return (cycle
+//                .andThen(cycle)
+//                .andThen(cycle)
+//                .andThen(cycle)
+//                .andThen(cycle)
+//                .andThen(cycle)
+//                .andThen(cycle)
+//                .andThen(cycle)
+//                .andThen(cycle)
+//                .andThen(cycle)
+//                .andThen(cycle)
+//                .andThen(cycle)
+//                .andThen(cycle)
+//        ).repeatedly()
+//                .beforeStarting(Commands.runOnce(() -> driveSimulation.setSimulationWorldPose(
+//                        ifShouldFlip(ROBOTS_STARTING_POSITIONS[id]))));
+//    }
+
+    private Pose2d getStationPose() {
         int station = ((int) Math.round(Math.random()));
-        double speedScalar = MathUtil.clamp(Math.random(), 0.7, 1);
+        Pose2d stationPose = switch (station) {
+            case 0 -> LEFT_STATION_POSE;
+            case 1 -> RIGHT_STATION_POSE;
+            default -> Pose2d.kZero;
+        };
+        return ifShouldFlip(stationPose);
+    }
+
+    private Pose2d getTargetPose() {
+        branch = ((int) Math.round(Math.random() * 17));
         Pose2d targetPose = switch (branch) {
             case 0 -> REEF_SOUTH_LEFT_POSE;
             case 1 -> REEF_SOUTH_RIGHT_POSE;
@@ -321,32 +355,44 @@ public class SimulatedRobots extends SubsystemBase {
             case 17 -> BARGE_NET_POSE;
             default -> Pose2d.kZero;
         };
-        boolean isAlgae = branch >= 12;
-        Pose2d stationPose = switch (station) {
-            case 0 -> LEFT_STATION_POSE;
-            case 1 -> RIGHT_STATION_POSE;
-            default -> Pose2d.kZero;
-        };
+        return ifShouldFlip(targetPose);
+    }
 
-        PathConstraints pathConstraints = new PathConstraints(
+    private PathPlannerPath pathFromPose(Pose2d pose) {
+        Transform2d transform1 = new Transform2d(
+                Units.inchesToMeters(-24),
+                0,
+                Rotation2d.kZero
+        );
+        Transform2d transform2 = new Transform2d(
+                Units.inchesToMeters(-12),
+                0,
+                Rotation2d.kZero
+        );
+        List<Waypoint> waypoints = PathPlannerPath.waypointsFromPoses(
+                pose.plus(transform1),
+                pose.plus(transform2),
+                pose
+        );
+        return new PathPlannerPath(
+                waypoints,
+                getPathConstraints(),
+                null,
+                new GoalEndState(0.0,
+                        pose.getRotation())
+        );
+    }
+
+    private PathConstraints getPathConstraints() {
+        double speedScalar = MathUtil.clamp(Math.random(), 0.7, 1);
+        return new PathConstraints(
                 15 * speedScalar,
                 5 * speedScalar,
                 Units.degreesToRadians(360) * speedScalar,
                 Units.degreesToRadians(720) * speedScalar);
-
-        cycle.addCommands(
-                simRobotPathfindFromPath(() -> ifShouldFlip(stationPose), pathConstraints).withTimeout(6));
-        cycle.addCommands(
-                simRobotPathfindFromPath(() -> ifShouldFlip(targetPose), pathConstraints).withTimeout(6));
-        cycle.addCommands(
-                isAlgae ? algaeFeedShot(alliance) : coralFeedShot());
-
-        return cycle.repeatedly()
-                .beforeStarting(Commands.runOnce(() -> driveSimulation.setSimulationWorldPose(
-                        ifShouldFlip(ROBOTS_STARTING_POSITIONS[id]))));
     }
 
-    public Pose2d ifShouldFlip(Pose2d pose) {
+    private Pose2d ifShouldFlip(Pose2d pose) {
         if (alliance == DriverStation.Alliance.Red) {
             return pose;
         } else {
@@ -359,7 +405,7 @@ public class SimulatedRobots extends SubsystemBase {
     /**
      * @return A command to be used by simulated robots to launch coral according to set values.
      */
-    public Command coralFeedShot() {
+    private Command coralFeedShot() {
         // Setup to match kitbot
         // Coral Settings
         Distance shootHeight = Meters.of(.85);
@@ -392,7 +438,7 @@ public class SimulatedRobots extends SubsystemBase {
     /**
      * @return A command to be used by simulated robots to launch algae according to set values.
      */
-    public Command algaeFeedShot(DriverStation.Alliance alliance) {
+    private Command algaeFeedShot(DriverStation.Alliance alliance) {
         // Algae settings
         Distance shootHeight = Meters.of(3);
         LinearVelocity shootSpeed = MetersPerSecond.of(3);
