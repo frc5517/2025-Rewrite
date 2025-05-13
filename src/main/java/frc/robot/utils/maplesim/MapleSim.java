@@ -16,6 +16,7 @@ import org.ironmaple.simulation.seasonspecific.reefscape2025.ReefscapeReefSimula
 import java.util.Arrays;
 
 public class MapleSim extends SubsystemBase {
+    private static final Timer matchTimer = new Timer();
     public static IntegerPublisher coralScoredInL1RedPublisher = NetworkTableInstance.getDefault()
             .getTable("SmartDashboard/MapleSim/MatchData/Breakdown/Red Alliance")
             .getIntegerTopic("Coral Scored in Trough")
@@ -86,7 +87,6 @@ public class MapleSim extends SubsystemBase {
     public static long coralOnL3Blue = 0;
     public static long coralOnL4Blue = 0;
     public static long algaeScoredInNetRed = 0;
-    private static final Timer matchTimer = new Timer();
     private final StructArrayPublisher<Pose3d> coralPoses = NetworkTableInstance.getDefault()
             .getTable("SmartDashboard/MapleSim/GamePieces")
             .getStructArrayTopic("Coral Array",
@@ -258,14 +258,17 @@ public class MapleSim extends SubsystemBase {
                         coralOnL2Red * scoreOnL2 +
                         coralOnL3Red * scoreOnL3 +
                         coralOnL4Red * scoreOnL4 +
-                        algaeScoredInNetRed + scoreInNet);
+                        algaeScoredInNetRed * scoreInNet);
         blueScorePublisher.set(
                 coralOnL1Blue * scoreOnL1 +
                         coralOnL2Blue * scoreOnL2 +
                         coralOnL3Blue * scoreOnL3 +
-                        coralOnL4Blue + scoreOnL4 +
-                        algaeScoredInNetBlue + scoreInNet);
+                        coralOnL4Blue * scoreOnL4 +
+                        algaeScoredInNetBlue * scoreInNet);
 
+        // Rounded to hundredth place.
+        scoreTimePublisher.set(
+                Math.round(matchTimer.get() * 100) / 100.0);
     }
 
     private int getAtoL(DriverStation.Alliance alliance, int level) {

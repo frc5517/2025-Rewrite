@@ -60,11 +60,11 @@ public abstract class SmartMechanism {
     /**
      * Create the {@link GearBox} for {@link MechanismGearing}
      *
-     * @param type            {@link Type} to create.
+     * @param type            {@link GearBox.Type} to create.
      * @param reductionStages Reduction stages in the gear box in the format of "IN:OUT".
      * @return {@link GearBox} for use in {@link MechanismGearing};
      */
-    public static GearBox gearbox(Type type, String... reductionStages) {
+    public static GearBox gearbox(GearBox.Type type, String... reductionStages) {
         switch (type) {
             case CUSTOM -> {
                 return new CustomGearbox(reductionStages);
@@ -92,11 +92,11 @@ public abstract class SmartMechanism {
     /**
      * Create the {@link GearBox} for {@link MechanismGearing}
      *
-     * @param type            {@link Type} to create.
+     * @param type            {@link GearBox.Type} to create.
      * @param reductionStages Reduction stages in the gear box, where "IN:OUT" => IN/OUT.
      * @return {@link GearBox} for use in {@link MechanismGearing};
      */
-    public static GearBox gearbox(Type type, double... reductionStages) {
+    public static GearBox gearbox(GearBox.Type type, double... reductionStages) {
         switch (type) {
             case CUSTOM -> {
                 return new CustomGearbox(reductionStages);
@@ -143,7 +143,7 @@ public abstract class SmartMechanism {
     }
 
     /**
-     * Set the DutyCycle of the {@link SmartMotorController}.
+     * Set the DutyCycle of the {@link yams.motorcontrollers.SmartMotorController}.
      *
      * @param dutycycle [-1,1] to set.
      * @return {@link Command}
@@ -155,9 +155,9 @@ public abstract class SmartMechanism {
     ;
 
     /**
-     * Set the voltage of the {@link SmartMotorController}.
+     * Set the voltage of the {@link yams.motorcontrollers.SmartMotorController}.
      *
-     * @param volts {@link Voltage} of the {@link SmartMotorController} to set.
+     * @param volts {@link Voltage} of the {@link yams.motorcontrollers.SmartMotorController} to set.
      * @return {@link Command}
      */
     public Command setVoltage(Voltage volts) {

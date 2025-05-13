@@ -286,13 +286,6 @@ public class TalonFXSWrapper extends SmartMotorController {
     }
 
     @Override
-    public void simIterate() {
-        if (RobotBase.isSimulation() && setpointVelocity.isPresent()) {
-            simIterate(setpointVelocity.get());
-        }
-    }
-
-    @Override
     public void setEncoderVelocity(AngularVelocity velocity) {
         m_dcmotorSim.ifPresent(sim -> sim.setAngularVelocity(velocity.in(RadiansPerSecond)));
         // Cannot  set velocity of CANdi or CANCoder.

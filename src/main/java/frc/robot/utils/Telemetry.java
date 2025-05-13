@@ -67,6 +67,7 @@ public class Telemetry extends SubsystemBase {
     // Verbosity of other mechanisms.
     public static SwerveDriveTelemetry.TelemetryVerbosity swerveVerbosity = SwerveDriveTelemetry.TelemetryVerbosity.HIGH;
     public static SmartMotorControllerConfig.TelemetryVerbosity elevatorVerbosity = SmartMotorControllerConfig.TelemetryVerbosity.HIGH;
+
     public enum RobotTelemetry {
         /*
          * No telemetry data is sent to dashboard.

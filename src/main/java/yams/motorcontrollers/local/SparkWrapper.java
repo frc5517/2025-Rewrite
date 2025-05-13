@@ -163,13 +163,6 @@ public class SparkWrapper extends SmartMotorController {
     }
 
     @Override
-    public void simIterate() {
-        if (RobotBase.isSimulation() && setpointVelocity.isPresent()) {
-            simIterate(setpointVelocity.get());
-        }
-    }
-
-    @Override
     public void setEncoderVelocity(LinearVelocity velocity) {
         setEncoderVelocity(config.convertToMechanism(velocity));
     }
@@ -329,6 +322,16 @@ public class SparkWrapper extends SmartMotorController {
                 }
             }
             config.clearFollowers();
+        }
+
+        if (config.getDiscontinuityPoint().isPresent()) {
+            throw new IllegalArgumentException(
+                    "[ERROR] Discontinuity point is not supported on Sparks, or we have not implemented this!");
+        }
+
+        if (config.getZeroOffset().isPresent()) {
+            DriverStation.reportError("[ERROR] Zero offset is not supported on Sparks, or we have not implemented this!",
+                    false);
         }
 
         return configureSpark(() -> spark.configure(sparkBaseConfig,
