@@ -58,6 +58,7 @@ public class RobotContainer {
         DriverStation.silenceJoystickConnectionWarning(true);
         bindingsSendableInit();
         configureBindings();
+        setupAutonomous();
     }
 
     private void bindingsSendableInit() {

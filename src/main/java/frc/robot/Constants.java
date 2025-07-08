@@ -41,13 +41,13 @@ public final class Constants {
         public static final Angle kDealgae = Degrees.of(-15);
         public static final Angle kStowSetpoint = Degrees.of(70);
 
-        public static final double kKp = 2.026;
+        public static final double kKp = 4.0;
         public static final double kKi = 0.0;
-        public static final double kKd = 0.092372;
-        public static final double kS = 0.012394;
-        public static final double kG = 0.019009;
-        public static final double kV = 0.12269;
-        public static final double kA = 0.0042372;
+        public static final double kKd = 0.0;
+        public static final double kS = 0.0;
+        public static final double kG = 0.0;
+        public static final double kV = 0.0;
+        public static final double kA = 0.0;
         public static final AngularVelocity kMaxSpeed = DegreesPerSecond.of(180);
         public static final AngularAcceleration kMaxAcceleration = DegreesPerSecondPerSecond.of(90);
         public static final Angle kTopSoftLimit = Degrees.of(74);
@@ -80,13 +80,13 @@ public final class Constants {
         public static final double kBottomCarriageToArmInches = 32;
         public static final double kCenterToElevator = Units.inchesToMeters(10);
 
-        public static final double kKp = 38;
-        public static final double kKi = 1;
-        public static final double kKd = 0.01;
-        public static final double kS = 0.08;
-        public static final double kG = 0.25;
-        public static final double kV = 3.07;
-        public static final double kA = 0.01;
+        public static final double kKp = 4;
+        public static final double kKi = 0;
+        public static final double kKd = 0.0;
+        public static final double kS = 0.0;
+        public static final double kG = 0.0;
+        public static final double kV = 0.0;
+        public static final double kA = 0.0;
         public static final AngularVelocity kMaxSpeed = DegreesPerSecond.of(180);
         public static final AngularAcceleration kMaxAcceleration = DegreesPerSecondPerSecond.of(90);
         public static final Distance kTopSoftLimit = Meters.of(Units.inchesToMeters(63.5));

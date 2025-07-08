@@ -6,6 +6,7 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.utils.maplesim.opponents.SmartOpponent;
 import org.ironmaple.simulation.IntakeSimulation;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.gamepieces.GamePieceProjectile;
@@ -109,7 +110,7 @@ public class MapleSim extends SubsystemBase {
      */
     public static void mapleSimInit() {
         SimulatedArena.getInstance().resetFieldForAuto();
-        SimulatedRobots.startOpponentRobotSimulations();
+        startOpponentRobotSimulations();
         new MapleSim();
     }
 
@@ -130,10 +131,11 @@ public class MapleSim extends SubsystemBase {
 
     /**
      * This method just gets {@link SimulatedArena} adds the given game piece to the sim and does some score keeping.
+     * Algae is not counted unless this method is used, or you manually add a piece to the score count.
      *
      * @param shotGamePiece {@link GamePieceProjectile} to shoot.
      */
-    public static void simShot(GamePieceProjectile shotGamePiece) {
+    public static void simAlgaeFeedshot(GamePieceProjectile shotGamePiece) {
         SimulatedArena.getInstance().addGamePieceProjectile(shotGamePiece);
         if (shotGamePiece instanceof ReefscapeAlgaeOnFly) {
             if (shotGamePiece.willHitTarget()) {
@@ -156,7 +158,7 @@ public class MapleSim extends SubsystemBase {
      */
     public static void simShotIfHasPiece(GamePieceProjectile shotGamePiece, IntakeSimulation intake) {
         if (intake.obtainGamePieceFromIntake()) {
-            simShot(shotGamePiece);
+            simAlgaeFeedshot(shotGamePiece);
         }
     }
 
@@ -300,5 +302,42 @@ public class MapleSim extends SubsystemBase {
                 .toArray(Pose3d[]::new)
         );
     }
+
+    /**
+     *
+     */
+    public static void startOpponentRobotSimulations() {
+        try {
+            // Adds a basic template opponent from this class
+//            instances[0] = new SimulatedRobots(0, DriverStation.Alliance.Red);
+//            instances[0].buildBehaviorChooser(
+//                    PathPlannerPath.fromPathFile("Opponent Left Cycle 0"),
+//                    Commands.run(SimulatedRobots::coralFeedShot),
+//                    PathPlannerPath.fromPathFile("Opponent Left Cycle Back 0"),
+//                    Commands.none(),
+//                    new CommandXboxController(2));
+
+//            // Adds a KitBot opponent
+//            KitBot.instances[0] = new KitBot(1, DriverStation.Alliance.Blue);
+//            KitBot.instances[0].buildBehaviorChooser(new CommandXboxController(3));
+
+            // create more opponent robots if you need
+        } catch (Exception e) {
+            DriverStation.reportError("Failed to load opponent robot simulation, error: " + e.getMessage(), false);
+        }
+    }
+
+
+
+    /**
+     *
+     * @return {@link MapleSim for chaining}
+     */
+    public MapleSim addOpponent(SmartOpponent opponent, DriverStation.Alliance alliance) {
+
+        return this;
+    }
+
+
 }
 
