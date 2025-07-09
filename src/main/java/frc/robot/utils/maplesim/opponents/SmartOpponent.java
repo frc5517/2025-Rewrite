@@ -1,27 +1,36 @@
 package frc.robot.utils.maplesim.opponents;
 
 import com.pathplanner.lib.commands.FollowPathCommand;
+import com.pathplanner.lib.commands.PathfindThenFollowPath;
 import com.pathplanner.lib.config.ModuleConfig;
 import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
+import com.pathplanner.lib.path.GoalEndState;
+import com.pathplanner.lib.path.PathConstraints;
 import com.pathplanner.lib.path.PathPlannerPath;
+import com.pathplanner.lib.path.Waypoint;
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.StringPublisher;
 import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.LinearVelocity;
+import edu.wpi.first.units.measure.Mass;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import frc.robot.utils.maplesim.MapleSim;
@@ -34,6 +43,7 @@ import org.ironmaple.simulation.seasonspecific.reefscape2025.ReefscapeAlgaeOnFly
 import org.ironmaple.simulation.seasonspecific.reefscape2025.ReefscapeCoralOnFly;
 import org.ironmaple.utils.FieldMirroringUtils;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
@@ -43,104 +53,141 @@ import static frc.robot.utils.maplesim.MapleConstants.PoseConstants.*;
 
 public abstract class SmartOpponent extends SubsystemBase {
 
-    private Optional<Integer> id = Optional.empty();
+    protected Optional<Integer> id = Optional.empty();
 
-    private Optional<DriverStation.Alliance> alliance = Optional.empty();
+    protected Optional<DriverStation.Alliance> alliance = Optional.empty();
 
-    private Optional<SelfControlledSwerveDriveSimulation> simulation = Optional.empty();
+    protected Optional<SelfControlledSwerveDriveSimulation> simulation = Optional.empty();
 
-    private Optional<States> currentState = Optional.empty();
+    protected Optional<States> currentState = Optional.empty();
 
-    private Optional<Pose2d> startPose = Optional.empty();
+    protected Optional<Pose2d> startPose = Optional.empty();
 
-    private Optional<Pose2d> queeningPose = Optional.empty();
+    protected Optional<Pose2d> queeningPose = Optional.empty();
 
-    private Optional<StructPublisher<Pose2d>> posePublisher = Optional.empty();
+    protected Optional<StructPublisher<Pose2d>> posePublisher = Optional.empty();
 
-    private Optional<SendableChooser<Command>> behaviorChooser = Optional.empty();
+    protected Optional<StringPublisher> statePublisher = Optional.empty();
 
-    private Optional<Integer> scoreTarget = Optional.empty();
+    protected Optional<SendableChooser<Command>> behaviorChooser = Optional.empty();
 
-    private static final PPHolonomicDriveController driveController =
-            new PPHolonomicDriveController(new PIDConstants(5.0, 0.02), new PIDConstants(5.0, 0.05));
-    private static final double opponentMassKG = 55;
-    private static final double opponentMOI = 8;
-    private static final double opponentWheelRadius = Units.inchesToMeters(2);
-    private static final double opponentDriveVelocity = 8.5;
-    private static final double opponentDriveCOF = 1.19;
-    private static final DCMotor opponentDriveMotor = DCMotor.getNEO(1)
-            .withReduction(8.14);
-    // Game piece setup is below
-    private static final double opponentDriveCurrentLimit = 40;
-    private static final int opponentNumDriveMotors = 1;
-    private static final double opponentTrackWidth = Units.inchesToMeters(23);
+    protected Optional<Integer> scoreTarget = Optional.empty();
+
+    protected Optional<PPHolonomicDriveController> driveController = Optional.empty();
+
+    protected Optional<Mass> opponentMassKG = Optional.empty();
+    protected Optional<Double> opponentMOI = Optional.empty();
+    protected Optional<Distance> opponentWheelRadius = Optional.empty();
+    protected Optional<LinearVelocity> opponentDriveVelocity = Optional.empty();
+    protected Optional<Double> opponentDriveCOF = Optional.empty();
+    protected Optional<DCMotor> opponentDriveMotor = Optional.empty();
+    protected Optional<Double> opponentDriveCurrentLimit = Optional.empty();
+    protected Optional<Integer> opponentNumDriveMotors = Optional.empty();
+    protected Optional<Distance> opponentTrackWidth = Optional.empty();
+
+    protected Subsystem subsystem;
+
     // PathPlanner configuration
-    private static final RobotConfig pathplannerConfig = new RobotConfig(
-            opponentMassKG,
-            opponentMOI,
-            new ModuleConfig(
-                    opponentWheelRadius,
-                    opponentDriveVelocity,
-                    opponentDriveCOF,
-                    opponentDriveMotor,
-                    opponentDriveCurrentLimit,
-                    opponentNumDriveMotors),
-            opponentTrackWidth
-    );
-    private static final DriveTrainSimulationConfig driveConfig = DriveTrainSimulationConfig.Default();
+    protected Optional<RobotConfig> pathplannerConfig = Optional.empty();
+    protected Optional<DriveTrainSimulationConfig> driveConfig = Optional.empty();
 
     /**
      * A default abstracted class for making smart opponent robots.
      * Smart Opponents run as a state machine.
      */
-    public SmartOpponent()
-    {
+    public SmartOpponent() {
 
     }
 
     /**
-     *
      * @param id
      * @param alliance
      */
-    public void setupOpponent(int id, DriverStation.Alliance alliance) {
+    public void setupOpponent(int id, DriverStation.Alliance alliance, Subsystem opponentClass) {
         this.id = Optional.of(id);
         this.alliance = Optional.of(alliance);
+        this.subsystem = opponentClass;
         this.startPose = Optional.of(ROBOTS_STARTING_POSITIONS[id]);
         this.queeningPose = Optional.of(ROBOT_QUEENING_POSITIONS[id]);
+        this.driveConfig = Optional.of(DriveTrainSimulationConfig.Default());
         this.simulation = Optional.of(
                 new SelfControlledSwerveDriveSimulation(new SwerveDriveSimulation(
-                        driveConfig,
+                        driveConfig.get(),
                         queeningPose.get()
                 )));
-
+        this.driveController = Optional.of(
+                new PPHolonomicDriveController(new PIDConstants(5.0, 0.02), new PIDConstants(5.0, 0.05)));
+        if
+        (
+                opponentMassKG.isPresent() &&
+                        opponentMOI.isPresent() &&
+                        opponentWheelRadius.isPresent() &&
+                        opponentDriveVelocity.isPresent() &&
+                        opponentDriveCOF.isPresent() &&
+                        opponentDriveMotor.isPresent() &&
+                        opponentDriveCurrentLimit.isPresent() &&
+                        opponentNumDriveMotors.isPresent() &&
+                        opponentTrackWidth.isPresent()
+        ) {
+            this.pathplannerConfig = Optional.of(new RobotConfig(
+                    opponentMassKG.get().in(Kilograms),
+                    opponentMOI.get(),
+                    new ModuleConfig(
+                            opponentWheelRadius.get().in(Inches),
+                            opponentDriveVelocity.get().in(MetersPerSecond),
+                            opponentDriveCOF.get(),
+                            opponentDriveMotor.get(),
+                            opponentDriveCurrentLimit.get(),
+                            opponentNumDriveMotors.get()),
+                    opponentTrackWidth.get().in(Meters)
+            ));
+        } else {
+            DriverStation.reportWarning("Pathplanner config not found, breaking is likely", false);
+        }
         this.posePublisher = Optional.of(
                 NetworkTableInstance.getDefault()
                         .getStructTopic("SmartDashboard/MapleSim/SimulatedRobots/Poses/ "
                                 + (alliance.equals(DriverStation.Alliance.Red) ? "Red Alliance " : "Blue Alliance ")
                                 + id + " Pose", Pose2d.struct).publish());
+        this.statePublisher = Optional.of(
+                NetworkTableInstance.getDefault()
+                        .getStringTopic("SmartDashboard/MapleSim/SimulatedRobots/States/ "
+                                + (alliance.equals(DriverStation.Alliance.Red) ? "Red Alliance " : "Blue Alliance ")
+                                + id + " Current State").publish());
+        buildBehaviorChooser();
+        this.currentState = Optional.of(States.STANDBY);
     }
 
     /**
-     *
      * @return
      */
-    private Command setStandbyState() {
+    public Command setStandbyState() {
         return Commands.runOnce(() -> currentState.ifPresentOrElse(
                         currentState -> setState(States.STANDBY),
                         () -> {
                             DriverStation.reportWarning("Current state not found", false);
-                        }))
+                        }), subsystem)
                 .ignoringDisable(true);
     }
 
     /**
-     *
      * @return
      */
-    private Command setCollectState() {
+    public Command setCollectState() {
         return Commands.runOnce(() -> currentState.ifPresentOrElse(
                         currentState -> setState(States.COLLECT),
+                        () -> {
+                            DriverStation.reportWarning("Current state not found", false);
+                        }), subsystem)
+                .ignoringDisable(true);
+    }
+
+    /**
+     * @return
+     */
+    public Command setScoreState() {
+        return Commands.runOnce(() -> currentState.ifPresentOrElse(
+                        currentState -> setState(States.SCORE),
                         () -> {
                             DriverStation.reportWarning("Current state not found", false);
                         }))
@@ -148,10 +195,33 @@ public abstract class SmartOpponent extends SubsystemBase {
     }
 
     /**
-     *
+     * @return
+     */
+    public Command setJoystickState() {
+        return Commands.runOnce(() -> currentState.ifPresentOrElse(
+                        currentState -> setState(States.JOYSTICK),
+                        () -> {
+                            DriverStation.reportWarning("Current state not found", false);
+                        }))
+                .ignoringDisable(true);
+    }
+
+    /**
+     * @return
+     */
+    public Command setDefendState() {
+        return Commands.runOnce(() -> currentState.ifPresentOrElse(
+                        currentState -> setState(States.DEFEND),
+                        () -> {
+                            DriverStation.reportWarning("Current state not found", false);
+                        }))
+                .ignoringDisable(true);
+    }
+
+    /**
      * @param state
      */
-    private void setState(States state) {
+    public void setState(States state) {
         currentState = Optional.of(state);
     }
 
@@ -167,11 +237,8 @@ public abstract class SmartOpponent extends SubsystemBase {
 
             // Option to auto-cycle random
             behaviorChooser.get().addOption(
-                    "Smart Cycle", setCollectState());
-
-            // TODO needs added during withOperatorControl
-//            // Option to manually control the robot with a joystick
-//            behaviorChooser.addOption("Joystick Drive", joystickDrive(joystick));
+                    "Smart Cycle", setCollectState().beforeStarting(
+                            Commands.runOnce(this::toStartPose)));
 
             // Schedule the command when another behavior is selected
             behaviorChooser.get().onChange((Command::schedule));
@@ -190,25 +257,26 @@ public abstract class SmartOpponent extends SubsystemBase {
 
     }
 
-
-    /**
-     *
-     */
-    public void simIterate()
-    {
+    @Override
+    public void simulationPeriodic() {
         currentState.ifPresent(
                 state -> {
                     switch (state) {
-                        case STANDBY: Commands.none();
-                        break;
-                        case COLLECT: Commands.none();
-                        break;
-                        case SCORE: Commands.none();
-                        break;
-                        case JOYSTICK: Commands.none();
-                        break;
-                        case DEFEND: Commands.none();
-                        break;
+                        case STANDBY:
+                            toStandby();
+                            break;
+                        case COLLECT:
+                            collectCommand();
+                            break;
+                        case SCORE:
+                            scoreCommand();
+                            break;
+                        case JOYSTICK:
+                            joystickCommand();
+                            break;
+                        case DEFEND:
+                            defendCommand();
+                            break;
                     }
                 }
         );
@@ -216,13 +284,126 @@ public abstract class SmartOpponent extends SubsystemBase {
         simulation.ifPresent(
                 simulation -> posePublisher.ifPresent(
                         posePublisher -> posePublisher.set(simulation.getActualPoseInSimulationWorld())));
+        currentState.ifPresent(
+                state -> statePublisher.ifPresent(
+                        statePublisher -> statePublisher.set(state.toString())));
+    }
+
+    /**
+     *
+     */
+    public void toStandby() {
+        if (simulation.isPresent() && queeningPose.isPresent()) {
+            Commands.runOnce(() -> simulation.get().setSimulationWorldPose(queeningPose.get()), subsystem)
+                    .andThen(Commands.runOnce(() -> simulation.get().runChassisSpeeds(
+                            new ChassisSpeeds(), new Translation2d(), false, false), subsystem))
+                    .ignoringDisable(true);
+        } else {
+            Commands.runOnce(() -> {
+                DriverStation.reportWarning("No simulation found", false);
+            });
+        }
+    }
+
+    /**
+     *
+     */
+    public void toStartPose() {
+        if (startPose.isPresent()) {
+            Commands.runOnce(() -> getSimulation().setSimulationWorldPose(startPose.get()), subsystem)
+                    .andThen(Commands.runOnce(() -> getSimulation().runChassisSpeeds(
+                            new ChassisSpeeds(), new Translation2d(), false, false), this))
+                    .ignoringDisable(true).schedule();
+        } else {
+            Commands.runOnce(() -> {
+                DriverStation.reportWarning("No simulation found", false);
+            }, subsystem);
+        }
+    }
+
+    /**
+     *
+     */
+    public void collectCommand() {
+        if (simulation.isPresent()) {
+            pathfindToPathFromPose(getCollectPose())
+                    .andThen(setScoreState());
+        } else {
+            Commands.runOnce(() -> {
+                DriverStation.reportWarning("No simulation found", false);
+            }, subsystem).schedule();
+        }
+    }
+
+    /**
+     *
+     */
+    public void scoreCommand() {
+        if (simulation.isPresent() && scoreTarget.isPresent()) {
+            pathfindToPathFromPose(getScorePose())
+                    .andThen(scoreTarget.get() >= 12 ? algaeFeedShot() : coralFeedShot())
+                    .andThen(setCollectState());
+        } else {
+            Commands.runOnce(() -> {
+                DriverStation.reportWarning("No simulation found", false);
+            }, subsystem);
+        }
+    }
+
+    /**
+     *
+     */
+    public abstract void joystickCommand();
+
+    /**
+     *
+     */
+    public void joystickCommand(DoubleSupplier leftY, DoubleSupplier leftX, DoubleSupplier rightX) {
+        if (simulation.isPresent()) {
+            // Obtain chassis speeds from joystick input
+            final Supplier<ChassisSpeeds> joystickSpeeds = () -> new ChassisSpeeds(
+                    leftY.getAsDouble() * simulation.get().maxLinearVelocity().in(MetersPerSecond),
+                    leftX.getAsDouble() * simulation.get().maxLinearVelocity().in(MetersPerSecond),
+                    rightX.getAsDouble() * simulation.get().maxAngularVelocity().in(RadiansPerSecond));
+
+            // Obtain driverstation facing for opponent driver station
+            final Supplier<Rotation2d> opponentDriverStationFacing = () ->
+                    FieldMirroringUtils.getCurrentAllianceDriverStationFacing().plus(Rotation2d.fromDegrees(180));
+
+            Commands.run(() -> {
+                        // Calculate field-centric speed from driverstation-centric speed
+                        final ChassisSpeeds fieldCentricSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(
+                                joystickSpeeds.get(),
+                                FieldMirroringUtils.getCurrentAllianceDriverStationFacing()
+                                        .plus(Rotation2d.fromDegrees(180)));
+                        // Run the field-centric speed
+                        simulation.get().runChassisSpeeds(fieldCentricSpeeds, new Translation2d(), true, true);
+                    }, subsystem)
+                    // Before the command starts, reset the robot to a position inside the field
+                    .beforeStarting(this::toStartPose).schedule();
+        } else {
+            Commands.runOnce(() -> {
+                DriverStation.reportWarning("No simulation found", false);
+            }).schedule();
+        }
+    }
+
+    /**
+     * @return
+     */
+    public void defendCommand() {
+        Commands.runOnce(() -> {
+            DriverStation.reportWarning("Defend state not found", false);
+        }, subsystem);
     }
 
     /**
      * Follow path command for opponent robots
      */
-    private Command followPath(PathPlannerPath path) {
-        if (simulation.isPresent()) {
+    public Command followPath(PathPlannerPath path) {
+        if (simulation.isPresent() &&
+                driveController.isPresent() &&
+                pathplannerConfig.isPresent()) {
             return new FollowPathCommand(
                     path, // Specify the path
                     // Provide actual robot pose in simulation, bypassing odometry error
@@ -232,17 +413,16 @@ public abstract class SmartOpponent extends SubsystemBase {
                     // Chassis speeds output
                     (speeds, feedforwards) ->
                             simulation.get().runChassisSpeeds(speeds, new Translation2d(), false, false),
-                    driveController, // Specify PID controller
-                    pathplannerConfig,       // Specify robot configuration
+                    driveController.get(), // Specify PID controller
+                    pathplannerConfig.get(),       // Specify robot configuration
                     // Flip path based on alliance side
                     () -> DriverStation.getAlliance()
                             .orElse(DriverStation.Alliance.Blue)
-                            .equals(DriverStation.Alliance.Red),
-                    this // AIRobotInSimulation is a subsystem; this command should use it as a requirement
-            );
+                            .equals(DriverStation.Alliance.Red), subsystem);
         } else {
-            DriverStation.reportError("No simulation found", false);
-            return Commands.none();
+            return Commands.runOnce(() -> {
+                DriverStation.reportWarning("No simulation found", false);
+            });
         }
 
     }
@@ -251,70 +431,117 @@ public abstract class SmartOpponent extends SubsystemBase {
     /**
      *
      */
-    private void pathfindToPath()
-    {
-
-    }
-
-    /**
-     *
-     */
-    private void pathfindToPose()
-    {
-
-    }
-
-    /**
-     *
-     */
-    private void pathfindToPathFromPose()
-    {
-
-    }
-
-    /**
-     * TODO
-     * needs .withOperatorControls(DoubleSupplier, DoubleSupplier, Trigger, ect.) on classes that extend this class
-     */
-    private Command operatorControl(DoubleSupplier leftY, DoubleSupplier leftX, DoubleSupplier rightX)
-    {
-        if (simulation.isPresent()) {
-            // Obtain chassis speeds from joystick input
-            final Supplier<ChassisSpeeds> joystickSpeeds = () -> new ChassisSpeeds(
-                    leftY.getAsDouble() * simulation.get().maxLinearVelocity().in(MetersPerSecond),
-                    leftX.getAsDouble() * simulation.get().maxLinearVelocity().in(MetersPerSecond),
-                    rightX.getAsDouble() * simulation.get().maxAngularVelocity().in(RadiansPerSecond));
-
-
-            // Obtain driverstation facing for opponent driver station
-            final Supplier<Rotation2d> opponentDriverStationFacing = () ->
-                    FieldMirroringUtils.getCurrentAllianceDriverStationFacing().plus(Rotation2d.fromDegrees(180));
-
-            return Commands.run(() -> {
-                        // Calculate field-centric speed from driverstation-centric speed
-                        final ChassisSpeeds fieldCentricSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(
-                                joystickSpeeds.get(),
-                                FieldMirroringUtils.getCurrentAllianceDriverStationFacing()
-                                        .plus(Rotation2d.fromDegrees(180)));
-                        // Run the field-centric speed
-                        simulation.get().runChassisSpeeds(fieldCentricSpeeds, new Translation2d(), true, true);
-                    }, this)
-                    // Before the command starts, reset the robot to a position inside the field
-                    .beforeStarting(() -> id.ifPresent(
-                            id -> simulation.get().setSimulationWorldPose(
-                                    FieldMirroringUtils.toCurrentAlliancePose(ROBOTS_STARTING_POSITIONS[id]))
-                    ));
+    public Command pathfindToPath(PathPlannerPath path) {
+        if (simulation.isPresent() &&
+                driveController.isPresent() &&
+                pathplannerConfig.isPresent()) {
+            return new FollowPathCommand(
+                    path, // Specify the path
+                    // Provide actual robot pose in simulation, bypassing odometry error
+                    simulation.get()::getActualPoseInSimulationWorld,
+                    // Provide actual robot speed in simulation, bypassing encoder measurement error
+                    simulation.get()::getActualSpeedsRobotRelative,
+                    // Chassis speeds output
+                    (speeds, feedforwards) ->
+                            simulation.get().runChassisSpeeds(speeds, new Translation2d(), false, false),
+                    driveController.get(), // Specify PID controller
+                    pathplannerConfig.get(),       // Specify robot configuration
+                    // Flip path based on alliance side
+                    () -> DriverStation.getAlliance()
+                            .orElse(DriverStation.Alliance.Blue)
+                            .equals(DriverStation.Alliance.Red), subsystem);
         } else {
-            DriverStation.reportWarning("No simulation found", false);
-            return Commands.none();
+            return Commands.runOnce(() -> {
+                DriverStation.reportWarning("No simulation found", false);
+            }, subsystem);
         }
     }
 
     /**
      *
      */
-    private Command coralFeedShot()
-    {
+    public Command pathfindToPose(Pose2d pose) {
+        return Commands.runOnce(() -> {
+            DriverStation.reportWarning("pathFindToPose() not yet implemented", false);
+        }, subsystem);
+    }
+
+    /**
+     *
+     */
+    public Command pathfindToPathFromPose(Pose2d pose) {
+        if (simulation.isPresent() &&
+                driveController.isPresent() &&
+                pathplannerConfig.isPresent()) {
+            return new PathfindThenFollowPath(
+                    pathFromPose(getCollectPose()), // Specify the path
+                    // Limits to abide by
+                    getPathConstraints(),
+                    // Provide actual robot pose in simulation, bypassing odometry error
+                    simulation.get()::getActualPoseInSimulationWorld,
+                    // Provide actual robot speed in simulation, bypassing encoder measurement error
+                    simulation.get()::getActualSpeedsRobotRelative,
+                    // Chassis speeds output
+                    (speeds, feedforwards) ->
+                            simulation.get().runChassisSpeeds(speeds, Translation2d.kZero, false, false),
+                    driveController.get(), // Specify PID controller
+                    pathplannerConfig.get(),       // Specify robot configuration
+                    // Flip path based on alliance side
+                    () -> DriverStation.getAlliance()
+                            .orElse(DriverStation.Alliance.Blue)
+                            .equals(DriverStation.Alliance.Red), subsystem);
+        } else {
+            return Commands.runOnce(() -> {
+                DriverStation.reportWarning("No simulation found", false);
+            });
+        }
+    }
+
+    /**
+     * @param pose
+     * @return
+     */
+    public PathPlannerPath pathFromPose(Pose2d pose) {
+        Transform2d transform1 = new Transform2d(
+                Units.inchesToMeters(-24),
+                0,
+                Rotation2d.kZero
+        );
+        Transform2d transform2 = new Transform2d(
+                Units.inchesToMeters(-12),
+                0,
+                Rotation2d.kZero
+        );
+        List<Waypoint> waypoints = PathPlannerPath.waypointsFromPoses(
+                pose.plus(transform1),
+                pose.plus(transform2),
+                pose
+        );
+        return new PathPlannerPath(
+                waypoints,
+                getPathConstraints(),
+                null,
+                new GoalEndState(0.0,
+                        pose.getRotation())
+        );
+    }
+
+    /**
+     * @return
+     */
+    public PathConstraints getPathConstraints() {
+        double speedScalar = MathUtil.clamp(Math.random(), 0.7, 1); // Randomly vary speed for now.
+        return new PathConstraints(
+                15 * speedScalar,
+                5 * speedScalar,
+                Units.degreesToRadians(360) * speedScalar,
+                Units.degreesToRadians(720) * speedScalar);
+    }
+
+    /**
+     *
+     */
+    public Command coralFeedShot() {
         // Setup to match the 2025 kitbot
         // Coral Settings
         Distance shootHeight = Meters.of(.85);
@@ -352,8 +579,7 @@ public abstract class SmartOpponent extends SubsystemBase {
     /**
      * @return
      */
-    private Command algaeFeedShot()
-    {
+    public Command algaeFeedShot() {
         // Algae settings
         Distance shootHeight = Meters.of(3);
         LinearVelocity shootSpeed = MetersPerSecond.of(3);
@@ -388,16 +614,16 @@ public abstract class SmartOpponent extends SubsystemBase {
                             alliance.ifPresent(
                                     alliance -> {
                                         MapleSim.addAlgaeToScore(alliance, 1);
-                                    });}
+                                    });
+                        }
                     });
         });
     }
 
     /**
-     *
      * @return
      */
-    private Pose2d getCollectPose() {
+    public Pose2d getCollectPose() {
         int station = ((int) Math.round(Math.random()));
         Pose2d stationPose = switch (station) {
             case 0 -> LEFT_STATION_POSE;
@@ -408,10 +634,30 @@ public abstract class SmartOpponent extends SubsystemBase {
     }
 
     /**
-     *
      * @return
      */
-    private Pose2d getScorePose() {
+    public SelfControlledSwerveDriveSimulation getSimulation() {
+        if (simulation.isPresent()) {
+            return simulation.get();
+        } else {
+            DriverStation.reportWarning("No simulation found, causing a null pointer", false);
+            return null;
+        }
+    }
+
+    public PPHolonomicDriveController getDriveController() {
+        if (driveController.isPresent()) {
+            return driveController.get();
+        } else {
+            DriverStation.reportWarning("No Drive Controller found, using default", false);
+            return new PPHolonomicDriveController(new PIDConstants(5.0, 0.02), new PIDConstants(5.0, 0.05));
+        }
+    }
+
+    /**
+     * @return
+     */
+    public Pose2d getScorePose() {
         this.scoreTarget = Optional.of(((int) Math.round(Math.random() * 17)));
         Pose2d targetPose = switch (scoreTarget.get()) {
             case 0 -> REEF_SOUTH_LEFT_POSE;
@@ -437,11 +683,10 @@ public abstract class SmartOpponent extends SubsystemBase {
     }
 
     /**
-     *
      * @param pose
      * @return
      */
-    private Pose2d ifShouldFlip(Pose2d pose) {
+    public Pose2d ifShouldFlip(Pose2d pose) {
         if (alliance.isPresent()) {
             if (alliance.get() == DriverStation.Alliance.Red) {
                 return pose;

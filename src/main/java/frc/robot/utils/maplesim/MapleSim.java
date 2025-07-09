@@ -1,11 +1,14 @@
 package frc.robot.utils.maplesim;
 
+import com.pathplanner.lib.commands.PathfindingCommand;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.networktables.*;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import frc.robot.utils.maplesim.opponents.KitBot;
 import frc.robot.utils.maplesim.opponents.SmartOpponent;
 import org.ironmaple.simulation.IntakeSimulation;
 import org.ironmaple.simulation.SimulatedArena;
@@ -110,8 +113,20 @@ public class MapleSim extends SubsystemBase {
      */
     public static void mapleSimInit() {
         SimulatedArena.getInstance().resetFieldForAuto();
-        startOpponentRobotSimulations();
         new MapleSim();
+        new KitBot(0, DriverStation.Alliance.Blue)
+                .withControls(new CommandXboxController(3));
+        new KitBot(1, DriverStation.Alliance.Blue);
+        new KitBot(2, DriverStation.Alliance.Blue);
+        new KitBot(3, DriverStation.Alliance.Red);
+        new KitBot(4, DriverStation.Alliance.Red);
+    }
+
+    /**
+     * If you don't already schedule the pathplanner warm up command then this should be called after mapleSimInit().
+     */
+    public static void pathplannerWarmup() {
+        PathfindingCommand.warmupCommand().schedule();
     }
 
     /**
@@ -302,42 +317,5 @@ public class MapleSim extends SubsystemBase {
                 .toArray(Pose3d[]::new)
         );
     }
-
-    /**
-     *
-     */
-    public static void startOpponentRobotSimulations() {
-        try {
-            // Adds a basic template opponent from this class
-//            instances[0] = new SimulatedRobots(0, DriverStation.Alliance.Red);
-//            instances[0].buildBehaviorChooser(
-//                    PathPlannerPath.fromPathFile("Opponent Left Cycle 0"),
-//                    Commands.run(SimulatedRobots::coralFeedShot),
-//                    PathPlannerPath.fromPathFile("Opponent Left Cycle Back 0"),
-//                    Commands.none(),
-//                    new CommandXboxController(2));
-
-//            // Adds a KitBot opponent
-//            KitBot.instances[0] = new KitBot(1, DriverStation.Alliance.Blue);
-//            KitBot.instances[0].buildBehaviorChooser(new CommandXboxController(3));
-
-            // create more opponent robots if you need
-        } catch (Exception e) {
-            DriverStation.reportError("Failed to load opponent robot simulation, error: " + e.getMessage(), false);
-        }
-    }
-
-
-
-    /**
-     *
-     * @return {@link MapleSim for chaining}
-     */
-    public MapleSim addOpponent(SmartOpponent opponent, DriverStation.Alliance alliance) {
-
-        return this;
-    }
-
-
 }
 

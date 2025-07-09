@@ -118,6 +118,7 @@ public class MapleConstants {
 
         public static final List<Pose2d> targetPoses = new ArrayList<>();
         public static final List<Pose2d> stationPoses = new ArrayList<>();
+
         static {
             targetPoses.add(0, REEF_SOUTH_LEFT_POSE);
             targetPoses.add(1, REEF_SOUTH_RIGHT_POSE);
