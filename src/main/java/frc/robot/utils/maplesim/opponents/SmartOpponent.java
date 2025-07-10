@@ -26,10 +26,11 @@ import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.units.measure.Mass;
 import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.event.EventLoop;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj2.command.*;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.utils.maplesim.MapleSim;
@@ -164,7 +165,6 @@ public abstract class SmartOpponent extends SubsystemBase {
     }
 
     /**
-     *
      * @param state
      * @return
      */
@@ -294,17 +294,17 @@ public abstract class SmartOpponent extends SubsystemBase {
             final Supplier<Rotation2d> opponentDriverStationFacing = () ->
                     FieldMirroringUtils.getCurrentAllianceDriverStationFacing().plus(Rotation2d.fromDegrees(180));
             return
-            Commands.run(() -> {
-                        // Calculate field-centric speed from driverstation-centric speed
-                        final ChassisSpeeds fieldCentricSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(
-                                joystickSpeeds.get(),
-                                FieldMirroringUtils.getCurrentAllianceDriverStationFacing()
-                                        .plus(Rotation2d.fromDegrees(180)));
-                        // Run the field-centric speed
-                        simulation.get().runChassisSpeeds(fieldCentricSpeeds, new Translation2d(), true, true);
-                    }, this)
-                    // Before the command starts, reset the robot to a position inside the field
-                    .beforeStarting(this::startingState);
+                    Commands.run(() -> {
+                                // Calculate field-centric speed from driverstation-centric speed
+                                final ChassisSpeeds fieldCentricSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(
+                                        joystickSpeeds.get(),
+                                        FieldMirroringUtils.getCurrentAllianceDriverStationFacing()
+                                                .plus(Rotation2d.fromDegrees(180)));
+                                // Run the field-centric speed
+                                simulation.get().runChassisSpeeds(fieldCentricSpeeds, new Translation2d(), true, true);
+                            }, this)
+                            // Before the command starts, reset the robot to a position inside the field
+                            .beforeStarting(this::startingState);
         } else {
             return Commands.runOnce(() -> DriverStation.reportWarning("No simulation found", false), this);
         }
