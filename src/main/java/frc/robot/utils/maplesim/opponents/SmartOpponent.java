@@ -26,13 +26,12 @@ import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.units.measure.Mass;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.event.EventLoop;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.Subsystem;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import edu.wpi.first.wpilibj2.command.*;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.utils.maplesim.MapleSim;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SelfControlledSwerveDriveSimulation;
@@ -45,6 +44,7 @@ import org.ironmaple.utils.FieldMirroringUtils;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
@@ -85,8 +85,6 @@ public abstract class SmartOpponent extends SubsystemBase {
     protected Optional<Integer> opponentNumDriveMotors = Optional.empty();
     protected Optional<Distance> opponentTrackWidth = Optional.empty();
 
-    protected Subsystem subsystem;
-
     // PathPlanner configuration
     protected Optional<RobotConfig> pathplannerConfig = Optional.empty();
     protected Optional<DriveTrainSimulationConfig> driveConfig = Optional.empty();
@@ -103,10 +101,9 @@ public abstract class SmartOpponent extends SubsystemBase {
      * @param id
      * @param alliance
      */
-    public void setupOpponent(int id, DriverStation.Alliance alliance, Subsystem opponentClass) {
+    public void setupOpponent(int id, DriverStation.Alliance alliance) {
         this.id = Optional.of(id);
         this.alliance = Optional.of(alliance);
-        this.subsystem = opponentClass;
         this.startPose = Optional.of(ROBOTS_STARTING_POSITIONS[id]);
         this.queeningPose = Optional.of(ROBOT_QUEENING_POSITIONS[id]);
         this.driveConfig = Optional.of(DriveTrainSimulationConfig.Default());
@@ -144,6 +141,8 @@ public abstract class SmartOpponent extends SubsystemBase {
         } else {
             DriverStation.reportWarning("Pathplanner config not found, breaking is likely", false);
         }
+        SimulatedArena.getInstance().addDriveTrainSimulation(
+                this.simulation.get().getDriveTrainSimulation());
         this.posePublisher = Optional.of(
                 NetworkTableInstance.getDefault()
                         .getStructTopic("SmartDashboard/MapleSim/SimulatedRobots/Poses/ "
@@ -154,68 +153,23 @@ public abstract class SmartOpponent extends SubsystemBase {
                         .getStringTopic("SmartDashboard/MapleSim/SimulatedRobots/States/ "
                                 + (alliance.equals(DriverStation.Alliance.Red) ? "Red Alliance " : "Blue Alliance ")
                                 + id + " Current State").publish());
-        buildBehaviorChooser();
         this.currentState = Optional.of(States.STANDBY);
+        new Trigger(compareCurrentState(States.STANDBY)).onTrue(standbyState());
+        new Trigger(compareCurrentState(States.STARTING)).onTrue(startingState());
+        new Trigger(compareCurrentState(States.COLLECT)).onTrue(collectState());
+        new Trigger(compareCurrentState(States.SCORE)).onTrue(scoreState());
+        new Trigger(compareCurrentState(States.JOYSTICK)).onTrue(joystickState());
+        new Trigger(compareCurrentState(States.DEFEND)).onTrue(defendState());
+        buildBehaviorChooser();
     }
 
     /**
+     *
+     * @param state
      * @return
      */
-    public Command setStandbyState() {
-        return Commands.runOnce(() -> currentState.ifPresentOrElse(
-                        currentState -> setState(States.STANDBY),
-                        () -> {
-                            DriverStation.reportWarning("Current state not found", false);
-                        }), subsystem)
-                .ignoringDisable(true);
-    }
-
-    /**
-     * @return
-     */
-    public Command setCollectState() {
-        return Commands.runOnce(() -> currentState.ifPresentOrElse(
-                        currentState -> setState(States.COLLECT),
-                        () -> {
-                            DriverStation.reportWarning("Current state not found", false);
-                        }), subsystem)
-                .ignoringDisable(true);
-    }
-
-    /**
-     * @return
-     */
-    public Command setScoreState() {
-        return Commands.runOnce(() -> currentState.ifPresentOrElse(
-                        currentState -> setState(States.SCORE),
-                        () -> {
-                            DriverStation.reportWarning("Current state not found", false);
-                        }))
-                .ignoringDisable(true);
-    }
-
-    /**
-     * @return
-     */
-    public Command setJoystickState() {
-        return Commands.runOnce(() -> currentState.ifPresentOrElse(
-                        currentState -> setState(States.JOYSTICK),
-                        () -> {
-                            DriverStation.reportWarning("Current state not found", false);
-                        }))
-                .ignoringDisable(true);
-    }
-
-    /**
-     * @return
-     */
-    public Command setDefendState() {
-        return Commands.runOnce(() -> currentState.ifPresentOrElse(
-                        currentState -> setState(States.DEFEND),
-                        () -> {
-                            DriverStation.reportWarning("Current state not found", false);
-                        }))
-                .ignoringDisable(true);
+    public BooleanSupplier compareCurrentState(States state) {
+        return () -> currentState.isPresent() && state.equals(currentState.get());
     }
 
     /**
@@ -233,12 +187,11 @@ public abstract class SmartOpponent extends SubsystemBase {
             this.behaviorChooser = Optional.of(new SendableChooser<>());
 
             // Option to disable the robot
-            behaviorChooser.get().setDefaultOption("Disable", setStandbyState());
+            behaviorChooser.get().setDefaultOption("Disable", Commands.runOnce(() -> setState(States.STANDBY)));
 
             // Option to auto-cycle random
             behaviorChooser.get().addOption(
-                    "Smart Cycle", setCollectState().beforeStarting(
-                            Commands.runOnce(this::toStartPose)));
+                    "Smart Cycle", Commands.run(() -> setState(States.STARTING)));
 
             // Schedule the command when another behavior is selected
             behaviorChooser.get().onChange((Command::schedule));
@@ -248,7 +201,7 @@ public abstract class SmartOpponent extends SubsystemBase {
                     .onTrue(Commands.runOnce(() -> behaviorChooser.get().getSelected().schedule()));
 
             // Disable the robot when the user robot is disabled
-            RobotModeTriggers.disabled().onTrue(setStandbyState());
+            RobotModeTriggers.disabled().onTrue(Commands.runOnce(() -> setState(States.STANDBY)));
 
             SmartDashboard.putData("MapleSim/SimulatedRobots/Behaviors/ " + alliance + id + " Behavior", behaviorChooser.get());
         } else {
@@ -259,28 +212,6 @@ public abstract class SmartOpponent extends SubsystemBase {
 
     @Override
     public void simulationPeriodic() {
-        currentState.ifPresent(
-                state -> {
-                    switch (state) {
-                        case STANDBY:
-                            toStandby();
-                            break;
-                        case COLLECT:
-                            collectCommand();
-                            break;
-                        case SCORE:
-                            scoreCommand();
-                            break;
-                        case JOYSTICK:
-                            joystickCommand();
-                            break;
-                        case DEFEND:
-                            defendCommand();
-                            break;
-                    }
-                }
-        );
-
         simulation.ifPresent(
                 simulation -> posePublisher.ifPresent(
                         posePublisher -> posePublisher.set(simulation.getActualPoseInSimulationWorld())));
@@ -292,73 +223,66 @@ public abstract class SmartOpponent extends SubsystemBase {
     /**
      *
      */
-    public void toStandby() {
+    public Command standbyState() {
         if (simulation.isPresent() && queeningPose.isPresent()) {
-            Commands.runOnce(() -> simulation.get().setSimulationWorldPose(queeningPose.get()), subsystem)
+            return Commands.runOnce(() -> simulation.get().setSimulationWorldPose(queeningPose.get()), this)
                     .andThen(Commands.runOnce(() -> simulation.get().runChassisSpeeds(
-                            new ChassisSpeeds(), new Translation2d(), false, false), subsystem))
+                            new ChassisSpeeds(), new Translation2d(), false, false), this))
                     .ignoringDisable(true);
         } else {
-            Commands.runOnce(() -> {
-                DriverStation.reportWarning("No simulation found", false);
-            });
+            return Commands.runOnce(() -> DriverStation.reportWarning("No simulation found", false), this);
         }
     }
 
     /**
      *
      */
-    public void toStartPose() {
+    public Command startingState() {
         if (startPose.isPresent()) {
-            Commands.runOnce(() -> getSimulation().setSimulationWorldPose(startPose.get()), subsystem)
+            return Commands.runOnce(() -> getSimulation().setSimulationWorldPose(startPose.get()))
                     .andThen(Commands.runOnce(() -> getSimulation().runChassisSpeeds(
                             new ChassisSpeeds(), new Translation2d(), false, false), this))
-                    .ignoringDisable(true).schedule();
+                    .ignoringDisable(true)
+                    .andThen(Commands.runOnce(() -> setState(States.COLLECT), this));
         } else {
-            Commands.runOnce(() -> {
-                DriverStation.reportWarning("No simulation found", false);
-            }, subsystem);
+            return Commands.runOnce(() -> DriverStation.reportWarning("No simulation found", false), this);
         }
     }
 
     /**
      *
      */
-    public void collectCommand() {
+    public Command collectState() {
         if (simulation.isPresent()) {
-            pathfindToPathFromPose(getCollectPose())
-                    .andThen(setScoreState());
+            return pathfindToPathFromPose(getCollectPose())
+                    .andThen(() -> setState(States.SCORE));
         } else {
-            Commands.runOnce(() -> {
-                DriverStation.reportWarning("No simulation found", false);
-            }, subsystem).schedule();
+            return Commands.runOnce(() -> DriverStation.reportWarning("No simulation found", false), this);
         }
     }
 
     /**
      *
      */
-    public void scoreCommand() {
+    public Command scoreState() {
         if (simulation.isPresent() && scoreTarget.isPresent()) {
-            pathfindToPathFromPose(getScorePose())
+            return pathfindToPathFromPose(getScorePose())
                     .andThen(scoreTarget.get() >= 12 ? algaeFeedShot() : coralFeedShot())
-                    .andThen(setCollectState());
+                    .andThen(() -> setState(States.COLLECT));
         } else {
-            Commands.runOnce(() -> {
-                DriverStation.reportWarning("No simulation found", false);
-            }, subsystem);
+            return Commands.runOnce(() -> DriverStation.reportWarning("No simulation found", false), this);
         }
     }
 
     /**
      *
      */
-    public abstract void joystickCommand();
+    public abstract Command joystickState();
 
     /**
      *
      */
-    public void joystickCommand(DoubleSupplier leftY, DoubleSupplier leftX, DoubleSupplier rightX) {
+    public Command joystickState(DoubleSupplier leftY, DoubleSupplier leftX, DoubleSupplier rightX) {
         if (simulation.isPresent()) {
             // Obtain chassis speeds from joystick input
             final Supplier<ChassisSpeeds> joystickSpeeds = () -> new ChassisSpeeds(
@@ -369,7 +293,7 @@ public abstract class SmartOpponent extends SubsystemBase {
             // Obtain driverstation facing for opponent driver station
             final Supplier<Rotation2d> opponentDriverStationFacing = () ->
                     FieldMirroringUtils.getCurrentAllianceDriverStationFacing().plus(Rotation2d.fromDegrees(180));
-
+            return
             Commands.run(() -> {
                         // Calculate field-centric speed from driverstation-centric speed
                         final ChassisSpeeds fieldCentricSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(
@@ -378,23 +302,19 @@ public abstract class SmartOpponent extends SubsystemBase {
                                         .plus(Rotation2d.fromDegrees(180)));
                         // Run the field-centric speed
                         simulation.get().runChassisSpeeds(fieldCentricSpeeds, new Translation2d(), true, true);
-                    }, subsystem)
+                    }, this)
                     // Before the command starts, reset the robot to a position inside the field
-                    .beforeStarting(this::toStartPose).schedule();
+                    .beforeStarting(this::startingState);
         } else {
-            Commands.runOnce(() -> {
-                DriverStation.reportWarning("No simulation found", false);
-            }).schedule();
+            return Commands.runOnce(() -> DriverStation.reportWarning("No simulation found", false), this);
         }
     }
 
     /**
      * @return
      */
-    public void defendCommand() {
-        Commands.runOnce(() -> {
-            DriverStation.reportWarning("Defend state not found", false);
-        }, subsystem);
+    public Command defendState() {
+        return Commands.runOnce(() -> DriverStation.reportWarning("No defend state implemented", false), this);
     }
 
     /**
@@ -418,7 +338,7 @@ public abstract class SmartOpponent extends SubsystemBase {
                     // Flip path based on alliance side
                     () -> DriverStation.getAlliance()
                             .orElse(DriverStation.Alliance.Blue)
-                            .equals(DriverStation.Alliance.Red), subsystem);
+                            .equals(DriverStation.Alliance.Red), this);
         } else {
             return Commands.runOnce(() -> {
                 DriverStation.reportWarning("No simulation found", false);
@@ -449,11 +369,11 @@ public abstract class SmartOpponent extends SubsystemBase {
                     // Flip path based on alliance side
                     () -> DriverStation.getAlliance()
                             .orElse(DriverStation.Alliance.Blue)
-                            .equals(DriverStation.Alliance.Red), subsystem);
+                            .equals(DriverStation.Alliance.Red), this);
         } else {
             return Commands.runOnce(() -> {
                 DriverStation.reportWarning("No simulation found", false);
-            }, subsystem);
+            }, this);
         }
     }
 
@@ -463,7 +383,7 @@ public abstract class SmartOpponent extends SubsystemBase {
     public Command pathfindToPose(Pose2d pose) {
         return Commands.runOnce(() -> {
             DriverStation.reportWarning("pathFindToPose() not yet implemented", false);
-        }, subsystem);
+        }, this);
     }
 
     /**
@@ -489,7 +409,7 @@ public abstract class SmartOpponent extends SubsystemBase {
                     // Flip path based on alliance side
                     () -> DriverStation.getAlliance()
                             .orElse(DriverStation.Alliance.Blue)
-                            .equals(DriverStation.Alliance.Red), subsystem);
+                            .equals(DriverStation.Alliance.Red), this);
         } else {
             return Commands.runOnce(() -> {
                 DriverStation.reportWarning("No simulation found", false);
@@ -708,6 +628,10 @@ public abstract class SmartOpponent extends SubsystemBase {
          * This state puts the {@link SmartOpponent} in it's queening pose.
          */
         STANDBY,
+        /**
+         * This state puts the robot into the starting pose.
+         */
+        STARTING,
         /**
          * This state has the opponent decide where then goes to collect a game piece.
          */

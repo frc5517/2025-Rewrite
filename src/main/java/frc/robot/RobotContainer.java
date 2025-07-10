@@ -69,7 +69,7 @@ public class RobotContainer {
         bindingSendable.addOption("Single Stick and Xbox", BindingsSelector.BindingType.SINGLE_STICK_XBOX);
         bindingSendable.addOption("Dual Stick and Xbox", BindingsSelector.BindingType.DUAL_STICK_XBOX);
         bindingSendable.setDefaultOption("Testing", BindingsSelector.BindingType.TESTING);
-        SmartDashboard.putData("Control Type", bindingSendable);
+        SmartDashboard.putData("RobotTelemetry/Control Type", bindingSendable);
     }
 
 //
