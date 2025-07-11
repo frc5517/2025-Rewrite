@@ -7,8 +7,6 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
-import frc.robot.utils.maplesim.opponents.KitBot;
 import org.ironmaple.simulation.IntakeSimulation;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.gamepieces.GamePieceProjectile;
@@ -113,12 +111,6 @@ public class MapleSim extends SubsystemBase {
     public static void mapleSimInit() {
         SimulatedArena.getInstance().resetFieldForAuto();
         new MapleSim();
-        new KitBot(0, DriverStation.Alliance.Blue)
-                .withControls(new CommandXboxController(3));
-        new KitBot(1, DriverStation.Alliance.Blue);
-        new KitBot(2, DriverStation.Alliance.Blue);
-        new KitBot(3, DriverStation.Alliance.Red);
-        new KitBot(4, DriverStation.Alliance.Red);
     }
 
     /**

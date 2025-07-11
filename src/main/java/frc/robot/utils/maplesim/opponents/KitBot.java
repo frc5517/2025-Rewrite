@@ -36,7 +36,7 @@ public class KitBot extends SmartOpponent {
     }
 
     public Command joystickState() {
-        return super.joystickState(
+        return super.joystickDrive(
                 () -> getController().getLeftY(),
                 () -> getController().getLeftX(),
                 () -> getController().getRightX());

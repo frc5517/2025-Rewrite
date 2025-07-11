@@ -23,6 +23,7 @@ import frc.robot.subsystems.swerve.SwerveSubsystem;
 import frc.robot.utils.BindingsSelector;
 import frc.robot.utils.PoseSelector;
 import frc.robot.utils.maplesim.MapleSim;
+import frc.robot.utils.maplesim.opponents.KitBot;
 import swervelib.SwerveInputStream;
 
 import java.io.File;
@@ -59,6 +60,12 @@ public class RobotContainer {
         bindingsSendableInit();
         configureBindings();
         setupAutonomous();
+        new KitBot(0, DriverStation.Alliance.Blue)
+                .withControls(new CommandXboxController(3));
+        new KitBot(1, DriverStation.Alliance.Blue);
+        new KitBot(2, DriverStation.Alliance.Blue);
+        new KitBot(3, DriverStation.Alliance.Red);
+        new KitBot(4, DriverStation.Alliance.Red);
     }
 
     private void bindingsSendableInit() {
