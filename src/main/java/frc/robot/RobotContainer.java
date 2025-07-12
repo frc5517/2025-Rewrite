@@ -60,12 +60,13 @@ public class RobotContainer {
         bindingsSendableInit();
         configureBindings();
         setupAutonomous();
-        new KitBot(0, DriverStation.Alliance.Blue)
-                .withControls(new CommandXboxController(3));
-        new KitBot(1, DriverStation.Alliance.Blue);
-        new KitBot(2, DriverStation.Alliance.Blue);
-        new KitBot(3, DriverStation.Alliance.Red);
-        new KitBot(4, DriverStation.Alliance.Red);
+        KitBot[] kitBots = new KitBot[5];
+        kitBots[0] = new KitBot(0, DriverStation.Alliance.Blue);
+        kitBots[0].withControls(new CommandXboxController(3));
+        kitBots[1] = new KitBot(1, DriverStation.Alliance.Blue);
+        kitBots[2] = new KitBot(2, DriverStation.Alliance.Blue);
+        kitBots[3] = new KitBot(3, DriverStation.Alliance.Red);
+        kitBots[4] = new KitBot(4, DriverStation.Alliance.Red);
     }
 
     private void bindingsSendableInit() {

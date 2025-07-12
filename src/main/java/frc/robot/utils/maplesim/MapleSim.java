@@ -1,6 +1,8 @@
 package frc.robot.utils.maplesim;
 
 import com.pathplanner.lib.commands.PathfindingCommand;
+import com.pathplanner.lib.pathfinding.LocalADStar;
+import com.pathplanner.lib.pathfinding.Pathfinding;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.networktables.*;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -78,6 +80,12 @@ public class MapleSim extends SubsystemBase {
             .getTable("SmartDashboard/MapleSim/MatchData")
             .getDoubleTopic("Current Match Time")
             .publish();
+    public static BooleanPublisher resetFieldPublisher = NetworkTableInstance.getDefault()
+            .getTable("SmartDashboard/MapleSim/MatchData")
+            .getBooleanTopic("Reset Field")
+            .publish();
+    public static BooleanSubscriber resetFieldSubscriber = resetFieldPublisher.getTopic().subscribe(false);
+    public static double matchTimerOffset = 0.0;
     public static long coralOnL1Red = 0;
     public static long coralOnL2Red = 0;
     public static long coralOnL3Red = 0;
@@ -102,6 +110,7 @@ public class MapleSim extends SubsystemBase {
 
     private MapleSim() {
         setupMatchData();
+        resetFieldPublisher.set(false);
     }
 
     /**
@@ -110,6 +119,7 @@ public class MapleSim extends SubsystemBase {
      */
     public static void mapleSimInit() {
         SimulatedArena.getInstance().resetFieldForAuto();
+        Pathfinding.setPathfinder(new LocalADStar());
         new MapleSim();
     }
 
@@ -276,7 +286,13 @@ public class MapleSim extends SubsystemBase {
 
         // Rounded to hundredth place.
         scoreTimePublisher.set(
-                Math.round(matchTimer.get() * 100) / 100.0);
+                (Math.round((matchTimer.get() * 100) - matchTimerOffset) / 100.0));
+
+        if (resetFieldSubscriber.get()) {
+            SimulatedArena.getInstance().resetFieldForAuto();
+            resetFieldPublisher.set(false);
+            matchTimerOffset = Math.round(matchTimer.get() * 100);
+        }
     }
 
     private int getAtoL(DriverStation.Alliance alliance, int level) {
@@ -309,4 +325,3 @@ public class MapleSim extends SubsystemBase {
         );
     }
 }
-

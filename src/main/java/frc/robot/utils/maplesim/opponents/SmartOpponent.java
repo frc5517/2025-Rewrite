@@ -9,6 +9,7 @@ import com.pathplanner.lib.path.GoalEndState;
 import com.pathplanner.lib.path.PathConstraints;
 import com.pathplanner.lib.path.PathPlannerPath;
 import com.pathplanner.lib.path.Waypoint;
+import com.pathplanner.lib.trajectory.PathPlannerTrajectoryState;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -31,7 +32,6 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
-import frc.robot.utils.maplesim.MapleSim;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SelfControlledSwerveDriveSimulation;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
@@ -43,6 +43,7 @@ import org.ironmaple.utils.FieldMirroringUtils;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
@@ -90,6 +91,8 @@ public abstract class SmartOpponent extends SubsystemBase {
     // PathPlanner configuration
     protected Optional<RobotConfig> pathplannerConfig = Optional.empty();
     protected Optional<DriveTrainSimulationConfig> driveConfig = Optional.empty();
+    protected Optional<MapleADStar> mapleADStar = Optional.empty();
+    protected Distance driveToPoseTolerance = Inches.of(6);
 
     /**
      * A default abstracted class for making smart opponent robots.
@@ -155,6 +158,7 @@ public abstract class SmartOpponent extends SubsystemBase {
                                 + (alliance.equals(DriverStation.Alliance.Red) ? "Red Alliance " : "Blue Alliance ")
                                 + id + " Current State").publish());
         this.scoreTarget = Optional.of(1);
+        this.mapleADStar = Optional.of(new MapleADStar());
         setState(States.STANDBY);
         buildBehaviorChooser();
     }
@@ -216,7 +220,8 @@ public abstract class SmartOpponent extends SubsystemBase {
                     .onTrue(Commands.runOnce(() -> behaviorChooser.get().getSelected().schedule()));
 
             // Disable the robot when the user robot is disabled
-            RobotModeTriggers.disabled().onTrue(Commands.runOnce(() -> setState(States.STANDBY)));
+            RobotModeTriggers.disabled().onTrue(Commands.runOnce(() -> Commands.runOnce(() -> setState(States.STANDBY))
+                    .andThen(standbyCommand())));
 
             SmartDashboard.putData("MapleSim/SimulatedRobots/Behaviors/ " + alliance + id + " Behavior", behaviorChooser.get());
         } else {
@@ -266,6 +271,7 @@ public abstract class SmartOpponent extends SubsystemBase {
                     .andThen(Commands.runOnce(() -> getSimulation().runChassisSpeeds(
                             new ChassisSpeeds(), new Translation2d(), false, false), this))
                     .ignoringDisable(true)
+                    .andThen(Commands.waitSeconds(1))
                     .andThen(() -> setState(States.COLLECT));
         } else {
             return Commands.runOnce(() -> DriverStation.reportWarning("No simulation found", false), this);
@@ -277,7 +283,11 @@ public abstract class SmartOpponent extends SubsystemBase {
      */
     public Command collectCommand() {
         if (simulation.isPresent()) {
-            return pathfindToPath(pathFromPose(getCollectPose()))
+            return Commands.run(() -> getSimulation().runChassisSpeeds(new ChassisSpeeds(
+                    0.2, 0, 0),
+                            new Translation2d(), false, false))
+                    .withTimeout(10)
+                    .andThen(Commands.waitSeconds(1))
                     .andThen(() -> setState(States.SCORE));
         } else {
             return Commands.runOnce(() -> DriverStation.reportWarning("No simulation found", false), this);
@@ -288,10 +298,12 @@ public abstract class SmartOpponent extends SubsystemBase {
      *
      */
     public Command scoreCommand() {
-        if (simulation.isPresent() && scoreTarget.isPresent()) {
-            return pathfindToPath(pathFromPose(getScorePose()))
-                    .andThen(scoreTarget.get() >= 12 ? algaeFeedShot() : coralFeedShot())
-                    .andThen(() -> setState(States.COLLECT));
+        if (simulation.isPresent() && scoreTarget.isPresent() && mapleADStar.isPresent()) {
+            return Commands.defer(() ->
+                    pathFindingCommand(getScorePose())
+                    .andThen(scoreTarget.get() >= 12 ? feedShot(getAlgaeProjectile()) : feedShot(getCoralProjectile()))
+                    .andThen(Commands.waitSeconds(1))
+                    .andThen(() -> setState(States.COLLECT)), Set.of(this));
         } else {
             return Commands.runOnce(() -> DriverStation.reportWarning("No simulation found", false), this);
         }
@@ -339,35 +351,45 @@ public abstract class SmartOpponent extends SubsystemBase {
         return Commands.runOnce(() -> DriverStation.reportWarning("No defend state implemented", false), this);
     }
 
-    /**
-     * Follow path command for opponent robots
-     */
-    public Command followPath(PathPlannerPath path) {
-        if (simulation.isPresent() &&
-                driveController.isPresent() &&
-                pathplannerConfig.isPresent()) {
-            return new FollowPathCommand(
-                    path, // Specify the path
-                    // Provide actual robot pose in simulation, bypassing odometry error
-                    simulation.get()::getActualPoseInSimulationWorld,
-                    // Provide actual robot speed in simulation, bypassing encoder measurement error
-                    simulation.get()::getActualSpeedsRobotRelative,
-                    // Chassis speeds output
-                    (speeds, feedforwards) ->
-                            simulation.get().runChassisSpeeds(speeds, new Translation2d(), false, false),
-                    driveController.get(), // Specify PID controller
-                    pathplannerConfig.get(),       // Specify robot configuration
-                    // Flip path based on alliance side
-                    () -> DriverStation.getAlliance()
-                            .orElse(DriverStation.Alliance.Blue)
-                            .equals(DriverStation.Alliance.Red), this)
-                    .until(() -> nearPose(path.getPathPoses().getLast(), Inches.of(6)));
-        } else {
-            return Commands.runOnce(() -> {
-                DriverStation.reportWarning("No simulation found", false);
-            });
-        }
+
+    public Command pathFindingCommand(Pose2d targetPose) {
+        mapleADStar.ifPresent(pathfinder -> {
+            pathfinder.setStartPosition(getSimulation().getActualPoseInSimulationWorld().getTranslation());
+            pathfinder.setGoalPosition(targetPose.getTranslation());
+            pathfinder.runThread();
+        });
+
+        return Commands.run(()-> {
+                    mapleADStar.get().currentPathFull.forEach(
+                            gridPosition -> {
+                                driveToPose(
+                                        new Pose2d(
+                                        gridPosition.x(),
+                                        gridPosition.y(),
+                                                targetPose.getRotation()));
+                            });
+                }).until(() -> nearPose(targetPose, driveToPoseTolerance));
     }
+
+    public void driveToPose(Pose2d targetPose) {
+        PathPlannerTrajectoryState state = new PathPlannerTrajectoryState();
+        state.pose = targetPose;
+        Commands.run(() -> {
+            driveController.ifPresent(controller -> {
+                controller.reset(
+                        getSimulation().getActualPoseInSimulationWorld(),
+                        getSimulation().getActualSpeedsRobotRelative());
+                getSimulation().runChassisSpeeds(
+                        controller.calculateRobotRelativeSpeeds(
+                                getSimulation().getActualPoseInSimulationWorld(),
+                                state),
+                        new Translation2d(),
+                        false,
+                        false);
+            });
+        }).until(() -> nearPose(targetPose, driveToPoseTolerance));
+    }
+
 
     /**
      *
@@ -397,15 +419,6 @@ public abstract class SmartOpponent extends SubsystemBase {
                 DriverStation.reportWarning("No simulation found", false);
             }, this);
         }
-    }
-
-    /**
-     *
-     */
-    public Command pathfindToPose(Pose2d pose) {
-        return Commands.runOnce(() -> {
-            DriverStation.reportWarning("pathFindToPose() not yet implemented", false);
-        }, this);
     }
 
     /**
@@ -460,10 +473,16 @@ public abstract class SmartOpponent extends SubsystemBase {
                 Units.degreesToRadians(720) * speedScalar);
     }
 
+    public Command feedShot(GamePieceProjectile projectile) {
+        return runOnce(() -> {
+            SimulatedArena.getInstance().addGamePieceProjectile(projectile);
+        });
+    }
+
     /**
      *
      */
-    public Command coralFeedShot() {
+    public GamePieceProjectile getCoralProjectile() {
         // Setup to match the 2025 kitbot
         // Coral Settings
         Distance shootHeight = Meters.of(.85);
@@ -473,35 +492,27 @@ public abstract class SmartOpponent extends SubsystemBase {
                 0.5,
                 0);
 
-        return runOnce(() ->
-        {
-            simulation.ifPresent(
-                    simulation ->
-                    {
-                        SimulatedArena.getInstance()
-                                .addGamePieceProjectile(new ReefscapeCoralOnFly(
-                                        // Obtain robot position from drive simulation
-                                        simulation.getDriveTrainSimulation().getSimulatedDriveTrainPose().getTranslation(),
-                                        // The scoring mechanism is installed at (x, y) (meters) on the robot
-                                        shootOnBotPosition,
-                                        // Obtain robot speed from drive simulation
-                                        simulation.getDriveTrainSimulation().getDriveTrainSimulatedChassisSpeedsFieldRelative(),
-                                        // Obtain robot facing from drive simulation
-                                        simulation.getDriveTrainSimulation().getSimulatedDriveTrainPose().getRotation(),
-                                        // The height at which the coral is ejected
-                                        shootHeight,
-                                        // The initial speed of the coral
-                                        shootSpeed,
-                                        // The coral is ejected at a 35-degree slope
-                                        shootAngle));
-                    });
-        });
+        return new ReefscapeCoralOnFly(
+                // Obtain robot position from drive simulation
+                getSimulation().getDriveTrainSimulation().getSimulatedDriveTrainPose().getTranslation(),
+                // The scoring mechanism is installed at (x, y) (meters) on the robot
+                shootOnBotPosition,
+                // Obtain robot speed from drive simulation
+                getSimulation().getDriveTrainSimulation().getDriveTrainSimulatedChassisSpeedsFieldRelative(),
+                // Obtain robot facing from drive simulation
+                getSimulation().getDriveTrainSimulation().getSimulatedDriveTrainPose().getRotation(),
+                // The height at which the coral is ejected
+                shootHeight,
+                // The initial speed of the coral
+                shootSpeed,
+                // The coral is ejected at a 35-degree slope
+                shootAngle);
     }
 
     /**
-     * @return
+     *
      */
-    public Command algaeFeedShot() {
+    public GamePieceProjectile getAlgaeProjectile() {
         // Algae settings
         Distance shootHeight = Meters.of(3);
         LinearVelocity shootSpeed = MetersPerSecond.of(3);
@@ -510,36 +521,21 @@ public abstract class SmartOpponent extends SubsystemBase {
                 0,
                 0);
 
-        return runOnce(() ->
-        {
-            simulation.ifPresent(
-                    simulation -> {
-                        GamePieceProjectile algae = new ReefscapeAlgaeOnFly(
-                                // Obtain robot position from drive simulation
-                                simulation.getDriveTrainSimulation().getSimulatedDriveTrainPose().getTranslation(),
-                                // The scoring mechanism is installed at (x, y) (meters) on the robot
-                                shootOnBotPosition,
-                                // Obtain robot speed from drive simulation
-                                simulation.getDriveTrainSimulation().getDriveTrainSimulatedChassisSpeedsRobotRelative(),
-                                // Obtain robot facing from drive simulation
-                                simulation.getDriveTrainSimulation().getSimulatedDriveTrainPose().getRotation(),
-                                // The height at which the coral is ejected
-                                shootHeight,
-                                // The initial speed of the coral
-                                shootSpeed,
-                                // The coral is ejected at a 35-degree slope
-                                shootAngle);
-                        SimulatedArena.getInstance()
-                                .addGamePieceProjectile(algae);
-
-                        if (algae.willHitTarget() | algae.hasHitTarget()) {
-                            alliance.ifPresent(
-                                    alliance -> {
-                                        MapleSim.addAlgaeToScore(alliance, 1);
-                                    });
-                        }
-                    });
-        });
+        return new ReefscapeAlgaeOnFly(
+                // Obtain robot position from drive simulation
+                getSimulation().getDriveTrainSimulation().getSimulatedDriveTrainPose().getTranslation(),
+                // The scoring mechanism is installed at (x, y) (meters) on the robot
+                shootOnBotPosition,
+                // Obtain robot speed from drive simulation
+                getSimulation().getDriveTrainSimulation().getDriveTrainSimulatedChassisSpeedsFieldRelative(),
+                // Obtain robot facing from drive simulation
+                getSimulation().getDriveTrainSimulation().getSimulatedDriveTrainPose().getRotation(),
+                // The height at which the coral is ejected
+                shootHeight,
+                // The initial speed of the coral
+                shootSpeed,
+                // The coral is ejected at a 35-degree slope
+                shootAngle);
     }
 
     /**
@@ -643,5 +639,4 @@ public abstract class SmartOpponent extends SubsystemBase {
          */
         DEFEND
     }
-
 }
