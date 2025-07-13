@@ -16,14 +16,13 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
-import frc.robot.subsystems.ArmSubsystem;
-import frc.robot.subsystems.ElevatorSubsystem;
-import frc.robot.subsystems.IntakeShooterSubsystem;
+import frc.robot.subsystems.*;
 import frc.robot.subsystems.swerve.SwerveSubsystem;
 import frc.robot.utils.BindingsSelector;
 import frc.robot.utils.PoseSelector;
 import frc.robot.utils.maplesim.MapleSim;
-import frc.robot.utils.maplesim.opponents.KitBot;
+import frc.robot.utils.maplesim.opponents.kitbot.KitBot;
+import frc.robot.utils.maplesim.opponents.kitbotpro.KitBotPro;
 import swervelib.SwerveInputStream;
 
 import java.io.File;
@@ -41,6 +40,9 @@ public class RobotContainer {
     private final ArmSubsystem arm = new ArmSubsystem();
     private final IntakeShooterSubsystem intakeShooter = new IntakeShooterSubsystem(
             swerve, elevator, arm);
+    private final AddressableLEDSubsystem led = new AddressableLEDSubsystem();
+    private final SuperStructure structure = new SuperStructure(
+            swerve, poseSelector, arm, elevator, intakeShooter, led);
     private final SwerveInputStream xboxStream = SwerveInputStream.of(swerve.getSwerveDrive(),
                     () -> driverXbox.getLeftY() * -1,
                     () -> driverXbox.getLeftX() * -1)
@@ -60,13 +62,15 @@ public class RobotContainer {
         bindingsSendableInit();
         configureBindings();
         setupAutonomous();
-        KitBot[] kitBots = new KitBot[5];
+        KitBotPro[] kitBotPros = new KitBotPro[2];
+        KitBot[] kitBots = new KitBot[3];
         kitBots[0] = new KitBot(0, DriverStation.Alliance.Blue);
-        kitBots[0].withControls(new CommandXboxController(3));
+        kitBots[0].withJoystick(new CommandXboxController(3));
         kitBots[1] = new KitBot(1, DriverStation.Alliance.Blue);
         kitBots[2] = new KitBot(2, DriverStation.Alliance.Blue);
-        kitBots[3] = new KitBot(3, DriverStation.Alliance.Red);
-        kitBots[4] = new KitBot(4, DriverStation.Alliance.Red);
+        kitBotPros[0] = new KitBotPro(3, DriverStation.Alliance.Red);
+        kitBotPros[0].withJoystick(new CommandXboxController(4));
+        kitBotPros[1] = new KitBotPro(4, DriverStation.Alliance.Red);
     }
 
     private void bindingsSendableInit() {
@@ -133,14 +137,14 @@ public class RobotContainer {
         isSingleXbox.and(driverXbox.leftBumper()).onTrue(Commands.runOnce(poseSelector::cycleStationSlotDown));
         isSingleXbox.and(driverXbox.rightBumper()).onTrue(Commands.runOnce(poseSelector::cycleStationSlotUp));
 
-        // Slow speed while holding left trigger
+        // Slow speed while holding the left trigger
         isSingleXbox.and(driverXbox.leftTrigger()).whileTrue(Commands.runEnd(
                 () -> xboxStream.scaleTranslation(0.3)
                         .scaleRotation(0.2),
                 () -> xboxStream.scaleTranslation(0.8)
                         .scaleRotation(0.6)
         ));
-        // Boost speed while holding right trigger
+        // Boost speed while holding the right trigger
         isSingleXbox.and(driverXbox.rightTrigger()).whileTrue(Commands.runEnd(
                 () -> xboxStream.scaleTranslation(1)
                         .scaleRotation(.75),
@@ -163,11 +167,11 @@ public class RobotContainer {
         ));
 
         // Drive to reef
-        isSingleXbox.and(driverXbox.a()).whileTrue(swerve.driveToReef(poseSelector));
+        isSingleXbox.and(driverXbox.a()).whileTrue(structure.autoCollect());
         // Drive to station
-        isSingleXbox.and(driverXbox.b()).whileTrue(swerve.driveToStation(poseSelector));
+        isSingleXbox.and(driverXbox.b()).whileTrue(structure.autoScore(SuperStructure.ScoreLevels.SCORE_L2));
         // Drive to processor
-        isSingleXbox.and(driverXbox.x()).whileTrue(swerve.driveToProcessor(poseSelector));
+        isSingleXbox.and(driverXbox.x()).whileTrue(structure.autoScore(SuperStructure.ScoreLevels.SCORE_L3));
         // Drive into climb
         isSingleXbox.and(driverXbox.y()).whileTrue(
                 swerve.driveToCage(poseSelector)
@@ -184,13 +188,11 @@ public class RobotContainer {
         isTesting.and(driverXbox.start()).onTrue(Commands.runOnce(() -> MapleSim.addCoralAllStations(false)));
         isTesting.and(driverXbox.back()).onTrue(Commands.runOnce(MapleSim::clearMatchData));
 
-        isTesting.and(driverXbox.a()).whileTrue(arm.toL1().alongWith(elevator.toL1()));
-        isTesting.and(driverXbox.b()).whileTrue(arm.toL2());
-        isTesting.and(driverXbox.x()).whileTrue(arm.toL3());
-        isTesting.and(driverXbox.y()).whileTrue(arm.toL4());
-        isTesting.and(driverXbox.povUp()).whileTrue(arm.goUp());
-        isTesting.and(driverXbox.povDown()).whileTrue(arm.goDown());
-        isTesting.and(driverXbox.start()).whileTrue(arm.sysId());
+        isTesting.and(driverXbox.a()).whileTrue(structure.autoScore(SuperStructure.ScoreLevels.SCORE_L1));
+        isTesting.and(driverXbox.b()).whileTrue(structure.autoScore(SuperStructure.ScoreLevels.SCORE_L1));
+        isTesting.and(driverXbox.x()).whileTrue(structure.autoScore(SuperStructure.ScoreLevels.SCORE_L1));
+        isTesting.and(driverXbox.y()).whileTrue(structure.autoScore(SuperStructure.ScoreLevels.SCORE_L1));
+        isTesting.and(driverXbox.start()).whileTrue(arm.sysId().alongWith(elevator.sysId()));
 
         isTesting.and(driverXbox.leftBumper()).whileTrue(intakeShooter.intake());
         isTesting.and(driverXbox.rightBumper()).whileTrue(intakeShooter.shoot());
@@ -215,20 +217,20 @@ public class RobotContainer {
 //        NamedCommands.registerCommand("scoreL3", superStructure.scoreL3());
 //        NamedCommands.registerCommand("scoreL4", superStructure.scoreL4());
 
-        NamedCommands.registerCommand("cycleStationUp", Commands.runOnce(poseSelector::cycleStationSlotUp));
-        NamedCommands.registerCommand("cycleStationDown", Commands.runOnce(poseSelector::cycleStationSlotDown));
-        NamedCommands.registerCommand("selectSlot1", Commands.runOnce(poseSelector::selectSlot1));
-        NamedCommands.registerCommand("selectSlot2", Commands.runOnce(poseSelector::selectSlot2));
-        NamedCommands.registerCommand("selectSlot3", Commands.runOnce(poseSelector::selectSlot3));
-
-        NamedCommands.registerCommand("selectSouth", Commands.runOnce(poseSelector::selectSouth));
-        NamedCommands.registerCommand("selectSoutheast", Commands.runOnce(poseSelector::selectSouthEast));
-        NamedCommands.registerCommand("selectSouthwest", Commands.runOnce(poseSelector::selectSouthWest));
-        NamedCommands.registerCommand("selectNorth", Commands.runOnce(poseSelector::selectNorth));
-        NamedCommands.registerCommand("selectNortheast", Commands.runOnce(poseSelector::selectNorthEast));
-        NamedCommands.registerCommand("selectNorthwest", Commands.runOnce(poseSelector::selectNorthWest));
-        NamedCommands.registerCommand("selectLeft", Commands.runOnce(poseSelector::selectLeft));
-        NamedCommands.registerCommand("selectRight", Commands.runOnce(poseSelector::selectRight));
+//        NamedCommands.registerCommand("cycleStationUp", Commands.runOnce(poseSelector::cycleStationSlotUp));
+//        NamedCommands.registerCommand("cycleStationDown", Commands.runOnce(poseSelector::cycleStationSlotDown));
+//        NamedCommands.registerCommand("selectSlot1", Commands.runOnce(poseSelector::selectSlot1));
+//        NamedCommands.registerCommand("selectSlot2", Commands.runOnce(poseSelector::selectSlot2));
+//        NamedCommands.registerCommand("selectSlot3", Commands.runOnce(poseSelector::selectSlot3));
+//
+//        NamedCommands.registerCommand("selectSouth", Commands.runOnce(poseSelector::selectSouth));
+//        NamedCommands.registerCommand("selectSoutheast", Commands.runOnce(poseSelector::selectSouthEast));
+//        NamedCommands.registerCommand("selectSouthwest", Commands.runOnce(poseSelector::selectSouthWest));
+//        NamedCommands.registerCommand("selectNorth", Commands.runOnce(poseSelector::selectNorth));
+//        NamedCommands.registerCommand("selectNortheast", Commands.runOnce(poseSelector::selectNorthEast));
+//        NamedCommands.registerCommand("selectNorthwest", Commands.runOnce(poseSelector::selectNorthWest));
+//        NamedCommands.registerCommand("selectLeft", Commands.runOnce(poseSelector::selectLeft));
+//        NamedCommands.registerCommand("selectRight", Commands.runOnce(poseSelector::selectRight));
 //        NamedCommands.registerCommand("driveToReef", Commands.defer(() -> swerve.driveToPose(poseSelector::flippedReefPose, elevator.scaleForDrive(.8)), Set.of(swerve)));
 //        NamedCommands.registerCommand("driveToStation", Commands.defer(() -> swerve.driveToPose(poseSelector::flippedStationPose, elevatorSubsystem.scaleForDrive(.8)), Set.of(drivebase)));
 

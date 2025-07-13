@@ -18,7 +18,6 @@ import frc.robot.utils.Telemetry;
 import org.ironmaple.simulation.IntakeSimulation;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.seasonspecific.reefscape2025.ReefscapeCoralOnFly;
-import yams.gearing.gearbox.GearBox;
 import yams.motorcontrollers.SmartMotorController;
 import yams.motorcontrollers.SmartMotorControllerConfig;
 import yams.motorcontrollers.local.SparkWrapper;
@@ -33,8 +32,8 @@ public class IntakeShooterSubsystem extends SubsystemBase {
     private final SparkMax intakeShooterMotor = new SparkMax(IntakeShooterConstants.kMotorID, SparkLowLevel.MotorType.kBrushless);
     private final SmartMotorControllerConfig motorConfig = new SmartMotorControllerConfig(this)
             .withIdleMode(SmartMotorControllerConfig.MotorMode.BRAKE)
-            .withMechanismCircumference(Constants.ElevatorConstants.kSprocketCircumference)
-            .withGearing(gearing(gearbox(GearBox.Type.VERSA_PLANETARY, 9, 3), sprocket(12, 28)))
+            .withMechanismCircumference(Constants.ElevatorConstants.kMechanismCircumference)
+            .withGearing(gearing(gearbox(1/9.0/3.0), sprocket(12, 28)))
             .withClosedLoopController(
                     IntakeShooterConstants.kKp,
                     IntakeShooterConstants.kKi,
