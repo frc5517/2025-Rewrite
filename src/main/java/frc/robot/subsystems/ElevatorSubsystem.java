@@ -12,7 +12,7 @@ import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
-import frc.robot.Constants;
+import frc.robot.Constants.ElevatorConstants;
 import frc.robot.utils.Telemetry;
 import yams.mechanisms.config.ElevatorConfig;
 import yams.mechanisms.config.MechanismPositionConfig;
@@ -23,27 +23,24 @@ import yams.motorcontrollers.local.SparkWrapper;
 
 import static edu.wpi.first.units.Units.*;
 import static frc.robot.utils.Telemetry.limitPublisher;
-import static yams.mechanisms.SmartMechanism.*;
 
 public class ElevatorSubsystem extends SubsystemBase {
-    private final SparkMax elevatorRightMotor = new SparkMax(Constants.ElevatorConstants.kRightMotorID, SparkLowLevel.MotorType.kBrushless);
-    private final SparkMax elevatorLeftMotor = new SparkMax(Constants.ElevatorConstants.kLeftMotorID, SparkLowLevel.MotorType.kBrushless);
+    private final SparkMax elevatorRightMotor = new SparkMax(ElevatorConstants.kRightMotorID, SparkLowLevel.MotorType.kBrushless);
+    private final SparkMax elevatorLeftMotor = new SparkMax(ElevatorConstants.kLeftMotorID, SparkLowLevel.MotorType.kBrushless);
     private final SmartMotorControllerConfig motorConfig   = new SmartMotorControllerConfig(this)
-            .withMechanismCircumference(Meters.of(Inches.of(0.25).in(Meters) * 22))
+            .withMechanismCircumference(ElevatorConstants.kSprocketCircumference)
             .withClosedLoopController(4, 0, 0, MetersPerSecond.of(2), MetersPerSecondPerSecond.of(3))
-            .withSoftLimit(Inches.of(1), Inches.of(63.5))
-            .withGearing(gearing(gearbox(1/3.0/5.0), sprocket(22, 22)))
+            .withSoftLimit(ElevatorConstants.kBottomSoftLimit, ElevatorConstants.kTopSoftLimit)
+            .withGearing(ElevatorConstants.kReduction)
 //      .withExternalEncoder(elevatorMotor.getAbsoluteEncoder())
             .withIdleMode(SmartMotorControllerConfig.MotorMode.BRAKE)
-            .withTelemetry("RobotTelemetry/Elevator/Elevator Motor", SmartMotorControllerConfig.TelemetryVerbosity.HIGH)
-//      .withSpecificTelemetry("ElevatorMotor", motorTelemetryConfig)
+            .withTelemetry("ElevatorMotor", SmartMotorControllerConfig.TelemetryVerbosity.HIGH)
             .withStatorCurrentLimit(Amps.of(40))
-            .withVoltageCompensation(Volts.of(12))
             .withMotorInverted(false)
             .withClosedLoopRampRate(Seconds.of(0.25))
             .withOpenLoopRampRate(Seconds.of(0.25))
             .withFeedforward(new ElevatorFeedforward(0, 0, 0, 0))
-            .withControlMode(SmartMotorControllerConfig.ControlMode.OPEN_LOOP)
+            .withControlMode(SmartMotorControllerConfig.ControlMode.CLOSED_LOOP)
             .withFollowers(Pair.of(elevatorRightMotor, true));
     private final SmartMotorController       motor         = new SparkWrapper(elevatorLeftMotor,
             DCMotor.getNEO(2),
@@ -55,13 +52,13 @@ public class ElevatorSubsystem extends SubsystemBase {
 
     private final ElevatorConfig             m_config      = new ElevatorConfig(motor)
             .withStartingHeight(Inches.of(1))
-            .withHardLimits(Inches.of(0), Inches.of(64))
-            .withTelemetry("RobotTelemetry/Elevator", SmartMotorControllerConfig.TelemetryVerbosity.HIGH)
+            .withHardLimits(ElevatorConstants.kBottomHardLimit, ElevatorConstants.kTopHardLimit)
+            .withTelemetry("Elevator", SmartMotorControllerConfig.TelemetryVerbosity.HIGH)
             .withMechanismPositionConfig(robotToMechanism)
-            .withMass(Pounds.of(10));
+            .withMass(ElevatorConstants.kMass);
     private final Elevator                   elevator      = new Elevator(m_config);
 
-    private final DigitalInput limitSwitch = new DigitalInput(Constants.ElevatorConstants.kBottomLimitPort);
+    private final DigitalInput limitSwitch = new DigitalInput(ElevatorConstants.kBottomLimitPort);
 
     public ElevatorSubsystem() {
         Trigger atBottomSwitch = new Trigger(limitSwitch::get);

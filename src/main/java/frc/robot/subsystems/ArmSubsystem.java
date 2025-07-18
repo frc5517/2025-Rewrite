@@ -1,5 +1,6 @@
 package frc.robot.subsystems;
 
+import com.ctre.phoenix6.hardware.TalonFXS;
 import com.revrobotics.spark.SparkLowLevel;
 import com.revrobotics.spark.SparkMax;
 import edu.wpi.first.math.controller.ArmFeedforward;
@@ -9,51 +10,49 @@ import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.wpilibj.DutyCycleEncoder;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.Constants.ArmConstants;
 import yams.mechanisms.config.ArmConfig;
 import yams.mechanisms.config.MechanismPositionConfig;
 import yams.mechanisms.positional.Arm;
 import yams.motorcontrollers.SmartMotorController;
 import yams.motorcontrollers.SmartMotorControllerConfig;
 import yams.motorcontrollers.local.SparkWrapper;
+import yams.motorcontrollers.remote.TalonFXSWrapper;
 
 import static edu.wpi.first.units.Units.*;
-import static yams.mechanisms.SmartMechanism.*;
 
 public class ArmSubsystem extends SubsystemBase {
-    private final DutyCycleEncoder armABS = new DutyCycleEncoder(1);
-    private final SparkMax armMotor    = new SparkMax(12, SparkLowLevel.MotorType.kBrushless);
+    private final SparkMax                   armMotor    = new SparkMax(12, SparkLowLevel.MotorType.kBrushless);
     private final SmartMotorControllerConfig motorConfig = new SmartMotorControllerConfig(this)
             .withClosedLoopController(4, 0, 0, DegreesPerSecond.of(180), DegreesPerSecondPerSecond.of(90))
-            .withSoftLimit(Degrees.of(-89), Degrees.of(75))
-            .withGearing(gearing(gearbox(3, 4, 5), sprocket(16, 38)))
-            //.withExternalEncoder(armABS.get())
+            .withSoftLimit(ArmConstants.kBottomSoftLimit, ArmConstants.kTopSoftLimit)
+            .withGearing(ArmConstants.kReduction)
             .withIdleMode(SmartMotorControllerConfig.MotorMode.BRAKE)
-            .withTelemetry("RobotTelemetry/ArmMotor", SmartMotorControllerConfig.TelemetryVerbosity.HIGH)
+            .withTelemetry("ArmMotor", SmartMotorControllerConfig.TelemetryVerbosity.HIGH)
             .withStatorCurrentLimit(Amps.of(40))
-            .withVoltageCompensation(Volts.of(12))
             .withMotorInverted(false)
             .withClosedLoopRampRate(Seconds.of(0.25))
             .withOpenLoopRampRate(Seconds.of(0.25))
             .withFeedforward(new ArmFeedforward(0, 0, 0, 0))
             .withControlMode(SmartMotorControllerConfig.ControlMode.CLOSED_LOOP);
     private final SmartMotorController       motor       = new SparkWrapper(armMotor, DCMotor.getNEO(1), motorConfig);
-    private final MechanismPositionConfig robotToMechanism = new MechanismPositionConfig()
+    private final MechanismPositionConfig    robotToMechanism = new MechanismPositionConfig()
             .withMaxRobotHeight(Meters.of(1.5))
             .withMaxRobotLength(Meters.of(0.75))
             .withRelativePosition(new Translation3d(Meters.of(0.25), Meters.of(0), Meters.of(0.5)));
     private final ArmConfig                  m_config    = new ArmConfig(motor)
-            .withLength(Inches.of(17))
-            .withHardLimit(Degrees.of(-90), Degrees.of(75))
-            .withTelemetry("Arm","RobotTelemetry/Arm", SmartMotorControllerConfig.TelemetryVerbosity.HIGH)
-            .withMass(Pounds.of(5))
+            .withLength(ArmConstants.kArmLength)
+            .withHardLimit(ArmConstants.kBottomHardLimit, ArmConstants.kTopHardLimit)
+            .withTelemetry("Arm", SmartMotorControllerConfig.TelemetryVerbosity.HIGH)
+            .withMass(ArmConstants.kArmMass)
             .withStartingPosition(Degrees.of(0))
-            //.withHorizontalZero(Degrees.of(-173))
+            .withHorizontalZero(Degrees.of(0))
             .withMechanismPositionConfig(robotToMechanism);
     private final Arm                        arm         = new Arm(m_config);
 
     public ArmSubsystem()
     {
-        motor.setPosition(Degrees.of(armABS.get()));
+        //motor.setPosition(Degrees.of(armABS.get()));
     }
 
     public void periodic()
@@ -68,7 +67,8 @@ public class ArmSubsystem extends SubsystemBase {
 
     public Command armCmd(double dutycycle)
     {
-        return arm.set(dutycycle);
+        return arm.set(dutycycle)
+                .finallyDo(() -> arm.set(0.0));
     }
 
     public Command sysId()

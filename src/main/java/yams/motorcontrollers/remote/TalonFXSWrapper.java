@@ -124,10 +124,6 @@ public class TalonFXSWrapper extends SmartMotorController
    */
   private final StatusSignal<Temperature>     m_deviceTemperature;
   /**
-   * {@link DCMotorSim} for the {@link TalonFXS}.
-   */
-  private       Optional<DCMotorSim>          m_dcmotorSim      = Optional.empty();
-  /**
    * {@link CANcoder} to use as external feedback sensor.
    */
   private final Optional<CANcoder>            m_cancoder        = Optional.empty();
@@ -135,6 +131,10 @@ public class TalonFXSWrapper extends SmartMotorController
    * {@link CANdi} to use as external feedback sensor.
    */
   private final Optional<CANdi>               m_candi           = Optional.empty();
+  /**
+   * {@link DCMotorSim} for the {@link TalonFXS}.
+   */
+  private Optional<DCMotorSim> m_dcmotorSim = Optional.empty();
 
   /**
    * Create the {@link TalonFXS} wrapper
@@ -396,10 +396,9 @@ public class TalonFXSWrapper extends SmartMotorController
   @Override
   public void setPosition(Angle angle)
   {
-    setpointPosition = angle == null ? Optional.empty() : Optional.of(angle);
+    setpointPosition = Optional.ofNullable(angle);
     if (angle != null)
     {
-      telemetry.setpointPosition = angle.in(Rotations);
       m_talonfxs.setControl(m_trapPositionReq.withPosition(angle));
     }
   }
@@ -419,10 +418,9 @@ public class TalonFXSWrapper extends SmartMotorController
   @Override
   public void setVelocity(AngularVelocity angle)
   {
-    setpointVelocity = angle == null ? Optional.empty() : Optional.of(angle);
+    setpointVelocity = Optional.ofNullable(angle);
     if (angle != null)
     {
-      telemetry.setpointVelocity = angle.in(RotationsPerSecond);
       m_talonfxs.setControl(m_velocityReq.withVelocity(angle));
     }
   }
@@ -594,8 +592,8 @@ public class TalonFXSWrapper extends SmartMotorController
                                                                     .getMechanismToRotorRatio();
       if (config.getExternalEncoder().get() instanceof CANcoder encoder)
       {
-        var      configurator = encoder.getConfigurator();
-        var      cfg          = new CANcoderConfiguration();
+        var configurator = encoder.getConfigurator();
+        var cfg          = new CANcoderConfiguration();
         configurator.refresh(cfg);
         m_talonConfig.ExternalFeedback.FeedbackRemoteSensorID = encoder.getDeviceID();
         cfg.MagnetSensor.withSensorDirection(
@@ -626,8 +624,8 @@ public class TalonFXSWrapper extends SmartMotorController
         configurator.apply(cfg);
       } else if (config.getExternalEncoder().get() instanceof CANdi encoder)
       {
-        var   configurator = encoder.getConfigurator();
-        var   cfg          = new CANdiConfiguration();
+        var configurator = encoder.getConfigurator();
+        var cfg          = new CANdiConfiguration();
         configurator.refresh(cfg);
         m_talonConfig.ExternalFeedback.FeedbackRemoteSensorID = encoder.getDeviceID();
         // Ensure pro uses best option.
@@ -770,9 +768,9 @@ public class TalonFXSWrapper extends SmartMotorController
   }
 
   @Override
-  public Current getSupplyCurrent()
+  public Optional<Current> getSupplyCurrent()
   {
-    return m_supplyCurrent.refresh().getValue();
+    return Optional.of(m_supplyCurrent.refresh().getValue());
   }
 
   @Override
@@ -887,19 +885,5 @@ public class TalonFXSWrapper extends SmartMotorController
   public Object getMotorControllerConfig()
   {
     return m_talonConfig;
-  }
-
-  @Override
-  public void updateTelemetry()
-  {
-    telemetry.outputVoltage = getVoltage().in(Volts);
-    telemetry.feedforwardVoltage = 0;
-    telemetry.pidOutputVoltage = 0;
-    telemetry.velocityControl = setpointVelocity.isPresent();
-    telemetry.motionProfile = config.getClosedLoopController().isPresent();
-    telemetry.armFeedforward = false;
-    telemetry.elevatorFeedforward = false;
-    telemetry.simpleFeedforward = false;
-    super.updateTelemetry();
   }
 }

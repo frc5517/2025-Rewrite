@@ -1,8 +1,5 @@
 package yams.mechanisms.config;
 
-import java.util.Optional;
-import java.util.OptionalDouble;
-
 import edu.wpi.first.units.Units;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Distance;
@@ -10,6 +7,8 @@ import edu.wpi.first.units.measure.Mass;
 import edu.wpi.first.wpilibj.simulation.SingleJointedArmSim;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj.util.Color8Bit;
+import java.util.Optional;
+import java.util.OptionalDouble;
 import yams.exceptions.ArmConfigurationException;
 import yams.motorcontrollers.SmartMotorController;
 import yams.motorcontrollers.SmartMotorControllerConfig;
@@ -21,48 +20,48 @@ public class ArmConfig
   /**
    * {@link SmartMotorController} for the {@link yams.mechanisms.positional.Arm}
    */
-  private final SmartMotorController motor;
-  /**
-   * Telemetry name.
-   */
-  private       Optional<String>     telemetryName = Optional.empty();
+  private final SmartMotorController         motor;
   /**
    * The network root of the mechanism (Optional).
    */
-  protected Optional<String> networkRoot = Optional.empty();
+  protected     Optional<String>             networkTableName        = Optional.empty();
+  /**
+   * Telemetry name.
+   */
+  private       Optional<String>             telemetryName           = Optional.empty();
   /**
    * Telemetry verbosity
    */
-  private Optional<TelemetryVerbosity> telemetryVerbosity = Optional.empty();
+  private       Optional<TelemetryVerbosity> telemetryVerbosity      = Optional.empty();
   /**
    * Lower Hard Limit for the {@link yams.mechanisms.positional.Arm} to be representing in simulation.
    */
-  private Optional<Angle>              lowerHardLimit     = Optional.empty();
+  private       Optional<Angle>              lowerHardLimit          = Optional.empty();
   /**
    * Upper hard limit for the {@link yams.mechanisms.positional.Arm} representing in simulation.
    */
-  private Optional<Angle>              upperHardLimit     = Optional.empty();
+  private       Optional<Angle>              upperHardLimit          = Optional.empty();
   /**
    * {@link yams.mechanisms.positional.Arm} length for simulation.
    */
-  private Optional<Distance>           length             = Optional.empty();
+  private       Optional<Distance>           length                  = Optional.empty();
   /**
    * {@link yams.mechanisms.positional.Arm} mass for simulation.
    */
-  private Optional<Mass>               weight             = Optional.empty();
+  private       Optional<Mass>               weight                  = Optional.empty();
   /**
    * {@link yams.mechanisms.positional.Arm} MOI from CAD software. If not given estimated with length and weight.
    */
-  private OptionalDouble               moi                = OptionalDouble.empty();
+  private       OptionalDouble               moi                     = OptionalDouble.empty();
   /**
    * Sim color value
    */
-  private       Color8Bit            simColor      = new Color8Bit(Color.kOrange);
+  private       Color8Bit                    simColor                = new Color8Bit(Color.kOrange);
   /**
    * Mechanism position configuration for the {@link yams.mechanisms.positional.Pivot} (Optional).
    */
-  private MechanismPositionConfig mechanismPositionConfig = new MechanismPositionConfig();
-  
+  private       MechanismPositionConfig      mechanismPositionConfig = new MechanismPositionConfig();
+
   /**
    * Arm Configuration class
    *
@@ -106,7 +105,7 @@ public class ArmConfig
    */
   public ArmConfig withLength(Distance distance)
   {
-    this.length = distance == null ? Optional.empty() : Optional.of(distance);
+    this.length = Optional.ofNullable(distance);
     return this;
   }
 
@@ -118,7 +117,7 @@ public class ArmConfig
    */
   public ArmConfig withMass(Mass mass)
   {
-    this.weight = mass == null ? Optional.empty() : Optional.of(mass);
+    this.weight = Optional.ofNullable(mass);
     return this;
   }
 
@@ -131,29 +130,31 @@ public class ArmConfig
    */
   public ArmConfig withTelemetry(String telemetryName, TelemetryVerbosity telemetryVerbosity)
   {
-    this.telemetryName = telemetryName == null ? Optional.empty() : Optional.of(telemetryName);
-    this.telemetryVerbosity = telemetryVerbosity == null ? Optional.empty() : Optional.of(telemetryVerbosity);
+    this.telemetryName = Optional.ofNullable(telemetryName);
+    this.telemetryVerbosity = Optional.ofNullable(telemetryVerbosity);
     return this;
   }
 
   /**
    * Configure telemetry for the {@link yams.mechanisms.positional.Arm} mechanism.
    *
-   * @param telemetryName      Telemetry NetworkTable name to appear under "SmartDashboard/"
+   * @param networkTableName   Telemetry NetworkTable
+   * @param telemetryName      Telemetry NetworkTable name to appear under {@value networkTableName}
    * @param telemetryVerbosity Telemetry verbosity to apply.
    * @return {@link ArmConfig} for chaining.
    */
+  @Deprecated
   public ArmConfig withTelemetry(String networkRoot, String telemetryName, TelemetryVerbosity telemetryVerbosity)
   {
-    this.networkRoot = Optional.ofNullable(networkRoot);
-    this.telemetryName = telemetryName == null ? Optional.empty() : Optional.of(telemetryName);
-    this.telemetryVerbosity = telemetryVerbosity == null ? Optional.empty() : Optional.of(telemetryVerbosity);
+    this.networkTableName = Optional.ofNullable(networkRoot);
+    this.telemetryName = Optional.ofNullable(telemetryName);
+    this.telemetryVerbosity = Optional.ofNullable(telemetryVerbosity);
     return this;
   }
 
   /**
    * Set the elevator mechnism position configuration.
-   * 
+   *
    * @param mechanismPositionConfig {@link MechanismPositionConfig} for the {@link yams.mechanisms.positional.Elevator}
    * @return {@link PivotConfig} for chaining
    */
@@ -162,6 +163,7 @@ public class ArmConfig
     this.mechanismPositionConfig = mechanismPositionConfig;
     return this;
   }
+
   /**
    * Set the horizontal zero of the arm.
    *
@@ -222,8 +224,8 @@ public class ArmConfig
    */
   public ArmConfig withHardLimit(Angle min, Angle max)
   {
-    lowerHardLimit = min == null ? Optional.empty() : Optional.of(min);
-    upperHardLimit = max == null ? Optional.empty() : Optional.of(max);
+    lowerHardLimit = Optional.ofNullable(min);
+    upperHardLimit = Optional.ofNullable(max);
     return this;
   }
 
@@ -335,19 +337,22 @@ public class ArmConfig
   /**
    * Get the {@link MechanismPositionConfig} associated with this {@link ArmConfig}.
    *
-   * @return An {@link Optional} containing the {@link MechanismPositionConfig} if present, otherwise an empty {@link Optional}.
+   * @return An {@link Optional} containing the {@link MechanismPositionConfig} if present, otherwise an empty
+   * {@link Optional}.
    */
   public MechanismPositionConfig getMechanismPositionConfig()
   {
     return mechanismPositionConfig;
-  } 
+  }
 
   /**
-   * Get the network root of the mechanism.
-   * @return Optional containing the network root if set, otherwise an empty Optional.
+   * Get the telemetry network subtable of the mechanism.
+   *
+   * @return Optional containing the telemetry network subtable if set, otherwise an empty Optional.
    */
-  public Optional<String> getNetworkRoot()
+  @Deprecated
+  public Optional<String> getTelemetryNetworkTableName()
   {
-    return networkRoot;
+    return networkTableName;
   }
 }

@@ -41,9 +41,14 @@ public final class Constants {
         public static final Angle kDealgae = Degrees.of(-15);
         public static final Angle kStowSetpoint = Degrees.of(70);
 
+        public static final Angle kTopSoftLimit = Degrees.of(74);
+        public static final Angle kBottomSoftLimit = Degrees.of(-89);
+        public static final Angle kTopHardLimit = Degrees.of(75);
+        public static final Angle kBottomHardLimit = Degrees.of(-90);
+        public static final Mass kArmMass = Pounds.of(3);
         public static final Distance kArmLength = Inches.of(17);
         public static final Angle kHorizontalZero = Degrees.of(-173);
-        public static final MechanismGearing kReduction = gearing(gearbox(1/5.0/4.0/3.0), sprocket(16, 38));
+        public static final MechanismGearing kReduction = gearing(gearbox(3, 4, 5), sprocket(16/38.0));
 
     }
 
@@ -51,24 +56,27 @@ public final class Constants {
         public static final int kRightMotorID = 14;
         public static final int kLeftMotorID = 13;
         public static final int kBottomLimitPort = 2;
-        public static final double kElevatorSpeed = 0.4;
+        public static final double kElevatorSpeed = .4;
         public static final Distance kL1Setpoint = Inches.of(10);
         public static final Distance kL2Setpoint = Inches.of(6);
         public static final Distance kL3Setpoint = Inches.of(25);
         public static final Distance kL4Setpoint = Inches.of(60);
-        public static final Distance kProcessorSetpoint = Inches.of(2);
-        public static final Distance kStationSetpoint = Inches.of(1);
-        public static final Distance kDealgaeHigh = Inches.of(37.5);
-        public static final Distance kDealgaeLow = Inches.of(20);
+        public static final double kProcessorSetpoint = 2;
+        public static final double kStationSetpoint = 1;
+        public static final double kDealgaeHigh = 37.5;
+        public static final double kDealgaeLow = 20;
         public static final Distance kStowSetpoint = Inches.of(0);
         public static final double kAutoScoreToleranceInches = .5;
         public static final double kBottomCarriageToArmInches = 32;
         public static final double kCenterToElevator = Units.inchesToMeters(10);
 
-        public static final Time kRampRate = Seconds.of(0.5);
+        public static final Distance kTopSoftLimit = Meters.of(Units.inchesToMeters(63.5));
+        public static final Distance kBottomSoftLimit = Meters.of(Units.inchesToMeters(0.5));
+        public static final Distance kTopHardLimit = Meters.of(Units.inchesToMeters(64));
+        public static final Distance kBottomHardLimit = Meters.of(Units.inchesToMeters(0));
         public static final Mass kMass = Kilograms.of(Units.lbsToKilograms(10));
-        public static final MechanismGearing kReduction = gearing(gearbox(1/3.0/5.0), sprocket(22, 22));
-        public static final Distance kMechanismCircumference = Meters.of(Inches.of(0.25).in(Meters) * 22); // Chain link size * 22
+        public static final MechanismGearing kReduction = gearing(gearbox(3, 5), sprocket(22/22.0));
+        public static final Distance kSprocketCircumference = Meters.of(Inches.of(0.25).in(Meters) * 22);
     }
 
     public static final class IntakeShooterConstants {

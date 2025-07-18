@@ -5,8 +5,10 @@ import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 import com.pathplanner.lib.path.Waypoint;
+import com.pathplanner.lib.pathfinding.Pathfinding;
 import com.pathplanner.lib.trajectory.PathPlannerTrajectoryState;
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.Pair;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
@@ -24,6 +26,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
@@ -93,13 +96,6 @@ public abstract class SmartOpponent extends SubsystemBase {
     protected String robotName = "Smart Opponent";
 
     /**
-     * A default abstracted class for making smart opponent robots.
-     * Smart Opponents run as a state machine.
-     */
-    public SmartOpponent() {
-    }
-
-    /**
      * @param id
      * @param alliance
      */
@@ -149,12 +145,12 @@ public abstract class SmartOpponent extends SubsystemBase {
                 NetworkTableInstance.getDefault()
                         .getStructTopic("SmartDashboard/MapleSim/SimulatedRobots/Poses/ "
                                 + (alliance.equals(DriverStation.Alliance.Red) ? "Red Alliance " : "Blue Alliance ")
-                                + robotName +  " " +id + " Pose", Pose2d.struct).publish());
+                                + robotName +  " " + id + " Pose", Pose2d.struct).publish());
         this.statePublisher = Optional.of(
                 NetworkTableInstance.getDefault()
                         .getStringTopic("SmartDashboard/MapleSim/SimulatedRobots/States/ "
                                 + (alliance.equals(DriverStation.Alliance.Red) ? "Red Alliance " : "Blue Alliance ")
-                                + robotName +  " " +id + " Current State").publish());
+                                + robotName +  " " + id + " Current State").publish());
         this.scoreTarget = Optional.of(1);
         this.mapleADStar = Optional.of(new MapleADStar());
         setState(States.STANDBY);
@@ -373,7 +369,7 @@ public abstract class SmartOpponent extends SubsystemBase {
             mapleADStar.get().setStartPosition(simulation.get().getActualPoseInSimulationWorld().getTranslation());
             mapleADStar.get().setGoalPosition(finalPose.getTranslation());
             mapleADStar.get().runThread();
-            return Commands.run(() -> {
+            return (Commands.run(() -> {
                 Pose2d currentPose = simulation.get().getActualPoseInSimulationWorld();
                 List<Waypoint> waypoints = mapleADStar.get().currentWaypoints;
                 Translation2d targetTranslation;
@@ -396,15 +392,24 @@ public abstract class SmartOpponent extends SubsystemBase {
                         currentPose,
                         state);
                 simulation.get().runChassisSpeeds(speeds, new Translation2d(), false, false);
-            }, this).until(() -> {
-                List<Waypoint> waypoints = mapleADStar.get().currentWaypoints;
-                return waypoints.isEmpty() && nearPose(finalPose, tolerance);
-            }).finallyDo(() -> simulation.get().runChassisSpeeds(new ChassisSpeeds(), new Translation2d(), false, false));
+            }, this)
+                    .until(() -> {
+                        List<Waypoint> waypoints = mapleADStar.get().currentWaypoints;
+                        return waypoints.isEmpty() && nearPose(finalPose, tolerance);})
+                    .finallyDo(() -> simulation.get().runChassisSpeeds(new ChassisSpeeds(), new Translation2d(), false, false)));
         } else {
             return Commands.runOnce(() -> {
                 DriverStation.reportWarning("No simulation found", false);
             }, this);
         }
+    }
+
+    public Pose2d getPose() {
+        Pose2d pose = new Pose2d();
+        if (simulation.isPresent()) {
+            pose = simulation.get().getActualPoseInSimulationWorld();
+        }
+        return pose;
     }
 
     /**

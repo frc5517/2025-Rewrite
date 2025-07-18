@@ -1,6 +1,5 @@
 package yams.motorcontrollers;
 
-import static edu.wpi.first.units.Units.Amps;
 import static edu.wpi.first.units.Units.Meters;
 import static edu.wpi.first.units.Units.MetersPerSecond;
 import static edu.wpi.first.units.Units.Rotations;
@@ -30,6 +29,7 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Config;
 import java.util.Optional;
 import yams.exceptions.SmartMotorControllerConfigurationException;
 import yams.gearing.MechanismGearing;
+import yams.motorcontrollers.SmartMotorControllerConfig.TelemetryVerbosity;
 import yams.telemetry.SmartMotorControllerTelemetry;
 import yams.telemetry.SmartMotorControllerTelemetryConfig;
 
@@ -72,6 +72,10 @@ public abstract class SmartMotorController
    * {@link SmartMotorController} telemetry table.
    */
   protected Optional<NetworkTable>                        telemetryTable             = Optional.empty();
+  /**
+   * {@link SmartMotorController} tuning table.
+   */
+  protected Optional<NetworkTable> tuningTable = Optional.empty();
   /**
    * Config for publishing specific telemetry.
    */
@@ -155,15 +159,6 @@ public abstract class SmartMotorController
   {
     double pidOutputVoltage = 0;
     double feedforward      = 0.0;
-    telemetry.setpointPosition = 0;
-    telemetry.setpointVelocity = 0;
-    telemetry.velocityControl = false;
-    telemetry.motionProfile = false;
-    telemetry.statorCurrent = getStatorCurrent().in(Amps);
-    telemetry.mechanismPosition = getMechanismPosition();
-    telemetry.mechanismVelocity = getMechanismVelocity();
-    telemetry.rotorPosition = getRotorPosition();
-    telemetry.rotorVelocity = getRotorVelocity();
     synchronizeRelativeEncoder();
 
     if (setpointPosition.isPresent())
@@ -194,13 +189,8 @@ public abstract class SmartMotorController
 
     if (pidController.isPresent() && setpointPosition.isPresent())
     {
-      telemetry.motionProfile = true;
-      telemetry.armFeedforward = false;
-      telemetry.elevatorFeedforward = false;
-      telemetry.simpleFeedforward = false;
       if (config.getArmFeedforward().isPresent())
       {
-        telemetry.armFeedforward = true;
         pidOutputVoltage = pidController.get().calculate(getMechanismPosition().in(Rotations),
                                                          setpointPosition.get().in(Rotations));
         feedforward = config.getArmFeedforward().get().calculateWithVelocities(getMechanismPosition().in(Rotations),
@@ -210,9 +200,6 @@ public abstract class SmartMotorController
                                                                                             .getSetpoint().velocity);
       } else if (config.getElevatorFeedforward().isPresent())
       {
-        telemetry.elevatorFeedforward = true;
-        telemetry.distance = getMeasurementPosition();
-        telemetry.linearVelocity = getMeasurementVelocity();
         pidOutputVoltage = pidController.get().calculate(getMeasurementPosition().in(Meters),
                                                          config.convertFromMechanism(setpointPosition.get())
                                                                .in(Meters));
@@ -221,62 +208,54 @@ public abstract class SmartMotorController
 
       } else if (config.getSimpleFeedforward().isPresent())
       {
-        telemetry.simpleFeedforward = true;
         feedforward = config.getSimpleFeedforward().get().calculateWithVelocities(getMechanismVelocity().in(
             RotationsPerSecond), pidController.get().getSetpoint().velocity);
 
       }
-      telemetry.setpointPosition = pidController.get().getSetpoint().position;
-      telemetry.setpointVelocity = pidController.get().getSetpoint().velocity;
 
     } else if (simplePidController.isPresent())
     {
       if (setpointPosition.isPresent())
       {
-        telemetry.setpointPosition = setpointPosition.get().in(Rotations);
         pidOutputVoltage = simplePidController.get().calculate(setpointPosition.get().in(Rotations),
                                                                setpointPosition.get().in(Rotations));
       } else if (setpointVelocity.isPresent())
       {
-        telemetry.velocityControl = true;
-        telemetry.setpointVelocity = setpointVelocity.get().in(RotationsPerSecond);
         pidOutputVoltage = simplePidController.get().calculate(setpointVelocity.get().in(RotationsPerSecond));
       }
     }
     if (config.getMechanismUpperLimit().isPresent())
     {
-      telemetry.mechanismUpperLimit = getMechanismPosition().gt(config.getMechanismUpperLimit().get());
-      if (telemetry.mechanismUpperLimit && (pidOutputVoltage + feedforward) > 0)
+      if (getMechanismPosition().gt(config.getMechanismUpperLimit().get()) && (pidOutputVoltage + feedforward) > 0)
       {
         pidOutputVoltage = feedforward = 0;
       }
     }
     if (config.getMechanismLowerLimit().isPresent())
     {
-      telemetry.mechanismLowerLimit = getMechanismPosition().lt(config.getMechanismLowerLimit().get());
-      if (telemetry.mechanismLowerLimit && (pidOutputVoltage + feedforward) < 0)
+      if (getMechanismPosition().lt(config.getMechanismLowerLimit().get()) && (pidOutputVoltage + feedforward) < 0)
       {
         pidOutputVoltage = feedforward = 0;
       }
     }
     if (config.getTemperatureCutoff().isPresent())
     {
-      telemetry.temperature = getTemperature();
-      telemetry.temperatureLimit = telemetry.temperature.gte(config.getTemperatureCutoff().get());
-      if (telemetry.temperatureLimit)
+      if (getTemperature().gte(config.getTemperatureCutoff().get()))
       {
         pidOutputVoltage = feedforward = 0;
       }
     }
-    telemetry.pidOutputVoltage = pidOutputVoltage;
-    telemetry.feedforwardVoltage = feedforward;
-    telemetry.outputVoltage = pidOutputVoltage + feedforward;
+//    telemetry.pidOutputVoltage = pidOutputVoltage;
+//    telemetry.feedforwardVoltage = feedforward;
+//    telemetry.outputVoltage = pidOutputVoltage + feedforward;
+    double outputVoltage = pidOutputVoltage + feedforward;
     if (config.getClosedLoopControllerMaximumVoltage().isPresent())
     {
       double maximumVoltage = config.getClosedLoopControllerMaximumVoltage().get().in(Volts);
-      telemetry.outputVoltage = MathUtil.clamp(telemetry.outputVoltage, -maximumVoltage, maximumVoltage);
+      outputVoltage = MathUtil.clamp(outputVoltage, -maximumVoltage, maximumVoltage);
+//      telemetry.outputVoltage = MathUtil.clamp(telemetry.outputVoltage, -maximumVoltage, maximumVoltage);
     }
-    setVoltage(Volts.of(telemetry.outputVoltage));
+    setVoltage(Volts.of(outputVoltage));
   }
 
   /**
@@ -445,7 +424,7 @@ public abstract class SmartMotorController
    *
    * @return The supply current of the motor controller.
    */
-  public abstract Current getSupplyCurrent();
+  public abstract Optional<Current> getSupplyCurrent();
 
   /**
    * Get the stator current of the motor controller.
@@ -526,17 +505,31 @@ public abstract class SmartMotorController
   /**
    * Update the telemetry under the motor name under the given {@link NetworkTable}
    *
-   * @param table {@link NetworkTable} to create the {@link SmartMotorControllerTelemetry} subtable under based off of
-   *              {@link SmartMotorControllerConfig#getTelemetryName()}.
+   * @param telemetry {@link NetworkTable} to create the {@link SmartMotorControllerTelemetry} subtable under based off
+   *                  of {@link SmartMotorControllerConfig#getTelemetryName()}.
+   * @param tuning    {@link NetworkTable} to create the tunable telemetry from {@link SmartMotorControllerTelemetry}
+   *                  subtable under. Based off of {@link SmartMotorControllerConfig#getTelemetryName()}.
    */
-  public void updateTelemetry(NetworkTable table)
+  public void setupTelemetry(NetworkTable telemetry, NetworkTable tuning)
   {
     if (parentTable.isEmpty())
     {
-      parentTable = Optional.of(table);
+      parentTable = Optional.of(telemetry);
       if (config.getTelemetryName().isPresent())
       {
-        telemetryTable = Optional.of(table.getSubTable(config.getTelemetryName().get()));
+        telemetryTable = Optional.of(telemetry.getSubTable(config.getTelemetryName().get()));
+        tuningTable = Optional.of(tuning.getSubTable(config.getTelemetryName().get()));
+        if (config.getSmartControllerTelemetryConfig().isPresent())
+        {
+          this.telemetry.setupTelemetry(telemetry, tuning, config.getSmartControllerTelemetryConfig().get());
+        } else
+        {
+          this.telemetry.setupTelemetry(telemetry,
+                                        tuning,
+                                        new SmartMotorControllerTelemetryConfig().withTelemetryVerbosity(config.getVerbosity()
+                                                                                                               .orElse(
+                                                                                                                   TelemetryVerbosity.HIGH)));
+        }
         updateTelemetry();
       }
     }
@@ -549,28 +542,17 @@ public abstract class SmartMotorController
   {
     if (telemetryTable.isPresent() && config.getVerbosity().isPresent())
     {
-      telemetry.temperature = getTemperature();
-      telemetry.statorCurrent = getStatorCurrent().in(Amps);
-      telemetry.mechanismPosition = getMechanismPosition();
-      telemetry.mechanismVelocity = getMechanismVelocity();
-      telemetry.rotorPosition = getRotorPosition();
-      telemetry.rotorVelocity = getRotorVelocity();
-      config.getMechanismLowerLimit().ifPresent(limit ->
-                                                    telemetry.mechanismLowerLimit = getMechanismPosition().lte(limit));
-      config.getMechanismUpperLimit().ifPresent(limit ->
-                                                    telemetry.mechanismUpperLimit = getMechanismPosition().gte(limit));
-      config.getTemperatureCutoff().ifPresent(limit ->
-                                                  telemetry.temperatureLimit = getTemperature().gte(limit));
-      if (config.getMechanismCircumference().isPresent())
+//      telemetry.refresh(this);
+      telemetry.publish(this);
+      if (DriverStation.isTestEnabled())
       {
-        telemetry.distance = getMeasurementPosition();
-        telemetry.linearVelocity = getMeasurementVelocity();
+        telemetry.applyTuningValues(this);
       }
-      config.getSmartControllerTelemetryConfig().ifPresentOrElse(
-              telemetryConfig ->
-                      telemetry.publishFromConfig(telemetryTable.get(), ((SmartMotorControllerTelemetryConfig) telemetryConfig)),
-              () -> telemetry.publish(telemetryTable.get(), config.getVerbosity().get()));
+      // if(tuningTable.isPresent())
+      //   telemetry.applyChanges(this);
+
     }
+    // TODO: Update PID, Feedforward, current limits, soft limits, ramp rate, motor inversion, encoder inversion
   }
 
   /**

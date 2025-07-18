@@ -1,300 +1,315 @@
 package yams.telemetry;
 
-import yams.motorcontrollers.SmartMotorController;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.stream.Collectors;
+import yams.motorcontrollers.SmartMotorControllerConfig.TelemetryVerbosity;
+import yams.telemetry.SmartMotorControllerTelemetry.BooleanTelemetryField;
+import yams.telemetry.SmartMotorControllerTelemetry.DoubleTelemetryField;
 
-public class SmartMotorControllerTelemetryConfig {
-    /**
-     * Mechanism lower limit reached.
-     */
-    public boolean mechanismLowerLimitEnabled = false;
-    /**
-     * Mechanism upper limit reached.
-     */
-    public boolean mechanismUpperLimitEnabled = false;
-    /**
-     * Motor temperature cutoff reached.
-     */
-    public boolean temperatureLimitEnabled = false;
-    /**
-     * Velocity PID controller used.
-     */
-    public boolean velocityControlEnabled = false;
-    /**
-     * Elevator feedforward used.
-     */
-    public boolean elevatorFeedforwardEnabled = false;
-    /**
-     * Arm feedforward used.
-     */
-    public boolean armFeedforwardEnabled = false;
-    /**
-     * Simple feedforward used.
-     */
-    public boolean simpleFeedforwardEnabled = false;
-    /**
-     * Motion profiling used.
-     */
-    public boolean motionProfileEnabled = false;
-    /**
-     * Setpoint position given.
-     */
-    public boolean setpointPositionEnabled = false;
-    /**
-     * Setpoint velocity given.
-     */
-    public boolean setpointVelocityEnabled = false;
-    /**
-     * Feedforward voltage supplied to the {@link SmartMotorController}
-     */
-    public boolean feedforwardVoltageEnabled = false;
-    /**
-     * PID Output voltage supplied to the {@link SmartMotorController}
-     */
-    public boolean pidOutputVoltageEnabled = false;
-    /**
-     * Output voltage to the {@link SmartMotorController}
-     */
-    public boolean outputVoltageEnabled = false;
-    /**
-     * Stator current (motor controller output current) to the Motor.
-     */
-    public boolean statorCurrentEnabled = false;
-    /**
-     * Motor temperature.
-     */
-    public boolean temperatureEnabled = false;
-    /**
-     * Mechanism distance.
-     */
-    public boolean distanceEnabled = false;
-    /**
-     * Mechanism linear velocity.
-     */
-    public boolean linearVelocityEnabled = false;
-    /**
-     * Mechanism position.
-     */
-    public boolean mechanismPositionEnabled = false;
-    /**
-     * Mechanism velocity.
-     */
-    public boolean mechanismVelocityEnabled = false;
-    /**
-     * Rotor position.
-     */
-    public boolean rotorPositionEnabled = false;
-    /**
-     * Rotor velocity.
-     */
-    public boolean rotorVelocityEnabled = false;
+public class SmartMotorControllerTelemetryConfig
+{
 
-    /**
-     * Enables the mechanism lower limit logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withMechanismLowerLimit() {
-        mechanismLowerLimitEnabled = true;
-        return this;
+  /**
+   * {@link BooleanTelemetryField}s to enable or disable.
+   */
+  private final Map<BooleanTelemetryField, BooleanTelemetry> boolFields   = Arrays.stream(BooleanTelemetryField.values())
+                                                                                  .collect(
+                                                                                      Collectors.toMap(e -> e,
+                                                                                                       BooleanTelemetryField::create));
+  /**
+   * {@link DoubleTelemetryField} to enable or disable.
+   */
+  private final Map<DoubleTelemetryField, DoubleTelemetry>   doubleFields = Arrays.stream(DoubleTelemetryField.values())
+                                                                                  .collect(Collectors.toMap(e -> e,
+                                                                                                            DoubleTelemetryField::create));
+
+  /**
+   * Setup with {@link TelemetryVerbosity}
+   *
+   * @param verbosity {@link TelemetryVerbosity} to use.
+   */
+  public SmartMotorControllerTelemetryConfig withTelemetryVerbosity(TelemetryVerbosity verbosity)
+  {
+    switch (verbosity)
+    {
+      case HIGH:
+        boolFields.get(BooleanTelemetryField.MechanismLowerLimit).enable();
+        boolFields.get(BooleanTelemetryField.MechanismUpperLimit).enable();
+
+        boolFields.get(BooleanTelemetryField.TemperatureLimit).enable();
+        boolFields.get(BooleanTelemetryField.VelocityControl).enable();
+        boolFields.get(BooleanTelemetryField.ElevatorFeedForward).enable();
+        boolFields.get(BooleanTelemetryField.ArmFeedForward).enable();
+        boolFields.get(BooleanTelemetryField.SimpleMotorFeedForward).enable();
+        boolFields.get(BooleanTelemetryField.MotionProfile).enable();
+        doubleFields.get(DoubleTelemetryField.SetpointPosition).enable();
+        doubleFields.get(DoubleTelemetryField.SetpointVelocity).enable();
+        doubleFields.get(DoubleTelemetryField.FeedforwardVoltage).enable();
+        doubleFields.get(DoubleTelemetryField.PIDOutputVoltage).enable();
+        doubleFields.get(DoubleTelemetryField.StatorCurrent).enable();
+        doubleFields.get(DoubleTelemetryField.SupplyCurrent).enable();
+        doubleFields.get(DoubleTelemetryField.MotorTemperature).enable();
+        doubleFields.get(DoubleTelemetryField.MeasurementPosition).enable();
+        doubleFields.get(DoubleTelemetryField.MeasurementVelocity).enable();
+        doubleFields.get(DoubleTelemetryField.MechanismPosition).enable();
+        doubleFields.get(DoubleTelemetryField.MechanismVelocity).enable();
+        doubleFields.get(DoubleTelemetryField.RotorPosition).enable();
+        doubleFields.get(DoubleTelemetryField.RotorVelocity).enable();
+      case MID:
+      case LOW:
     }
+    return this;
+  }
 
-    /**
-     * Enables the mechanism upper limit logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withMechanismUpperLimit() {
-        mechanismUpperLimitEnabled = true;
-        return this;
-    }
+  /**
+   * Get the configured double fields.
+   *
+   * @return Configured {@link DoubleTelemetry} for each {@link DoubleTelemetryField}
+   */
+  public Map<DoubleTelemetryField, DoubleTelemetry> getDoubleFields()
+  {
+    return doubleFields;
+  }
 
-    /**
-     * Enables the temperature limit logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withTemperatureLimit() {
-        temperatureLimitEnabled = true;
-        return this;
-    }
+  /**
+   * Get the configured bool fields.
+   *
+   * @return Configured {@link BooleanTelemetry} for each {@link BooleanTelemetryField}.
+   */
+  public Map<BooleanTelemetryField, BooleanTelemetry> getBoolFields()
+  {
+    return boolFields;
+  }
 
-    /**
-     * Enables the velocity control mode logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withVelocityControl() {
-        velocityControlEnabled = true;
-        return this;
-    }
+  /**
+   * Enables the mechanism lower limit logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withMechanismLowerLimit()
+  {
+    boolFields.get(BooleanTelemetryField.MechanismLowerLimit).enable();
+    return this;
+  }
 
-    /**
-     * Enables the elevator feedforward logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withElevatorFeedforward() {
-        elevatorFeedforwardEnabled = true;
-        return this;
-    }
+  /**
+   * Enables the mechanism upper limit logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withMechanismUpperLimit()
+  {
+    boolFields.get(BooleanTelemetryField.MechanismUpperLimit).enable();
+    return this;
+  }
 
-    /**
-     * Enables the arm feedforward logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withArmFeedforward() {
-        armFeedforwardEnabled = true;
-        return this;
-    }
+  /**
+   * Enables the temperature limit logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withTemperatureLimit()
+  {
+    boolFields.get(BooleanTelemetryField.TemperatureLimit).enable();
+    return this;
+  }
 
-    /**
-     * Enables the simple feedforward logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withSimpleFeedforward() {
-        simpleFeedforwardEnabled = true;
-        return this;
-    }
+  /**
+   * Enables the velocity control mode logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withVelocityControl()
+  {
+    boolFields.get(BooleanTelemetryField.VelocityControl).enable();
+    return this;
+  }
 
-    /**
-     * Enables the motion profile logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withMotionProfile() {
-        motionProfileEnabled = true;
-        return this;
-    }
+  /**
+   * Enables the elevator feedforward logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withElevatorFeedforward()
+  {
+    boolFields.get(BooleanTelemetryField.ElevatorFeedForward).enable();
+    return this;
+  }
 
-    /**
-     * Enables the setpoint position logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withSetpointPosition() {
-        setpointPositionEnabled = true;
-        return this;
-    }
+  /**
+   * Enables the arm feedforward logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withArmFeedforward()
+  {
+    boolFields.get(BooleanTelemetryField.ArmFeedForward).enable();
+    return this;
+  }
 
-    /**
-     * Enables the setpoint velocity logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withSetpointVelocity() {
-        setpointVelocityEnabled = true;
-        return this;
-    }
+  /**
+   * Enables the simple feedforward logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withSimpleFeedforward()
+  {
+    boolFields.get(BooleanTelemetryField.SimpleMotorFeedForward).enable();
+    return this;
+  }
 
-    /**
-     * Enables the feedforward voltage logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withFeedbackVoltage() {
-        feedforwardVoltageEnabled = true;
-        return this;
-    }
+  /**
+   * Enables the motion profile logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withMotionProfile()
+  {
+    boolFields.get(BooleanTelemetryField.MotionProfile).enable();
+    return this;
+  }
 
-    /**
-     * Enables the pid output voltage logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withPidOutputVoltage() {
-        pidOutputVoltageEnabled = true;
-        return this;
-    }
+  /**
+   * Enables the setpoint position logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withSetpointPosition()
+  {
+    doubleFields.get(DoubleTelemetryField.SetpointPosition).enable();
+    return this;
+  }
 
-    /**
-     * Enables the output voltage logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withOutputVoltage() {
-        outputVoltageEnabled = true;
-        return this;
-    }
+  /**
+   * Enables the setpoint velocity logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withSetpointVelocity()
+  {
+    doubleFields.get(DoubleTelemetryField.SetpointVelocity).enable();
+    return this;
+  }
 
-    /**
-     * Enables the stator current logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withStatorCurrent() {
-        statorCurrentEnabled = true;
-        return this;
-    }
+  /**
+   * Enables the feedforward voltage logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withFeedforwardVoltage()
+  {
+    doubleFields.get(DoubleTelemetryField.FeedforwardVoltage).enable();
+    return this;
+  }
 
-    /**
-     * Enables the temperature logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withTemperature() {
-        temperatureEnabled = true;
-        return this;
-    }
+  /**
+   * Enables the pid output voltage logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withPidOutputVoltage()
+  {
+    doubleFields.get(DoubleTelemetryField.PIDOutputVoltage).enable();
+    return this;
+  }
 
-    /**
-     * Enables the distance logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withDistance() {
-        distanceEnabled = true;
-        return this;
-    }
+  /**
+   * Enables the output voltage logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withOutputVoltage()
+  {
+    doubleFields.get(DoubleTelemetryField.OutputVoltage).enable();
+    return this;
+  }
 
-    /**
-     * Enables the linear velocity logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withLinearVelocity() {
-        linearVelocityEnabled = true;
-        return this;
-    }
+  /**
+   * Enables the stator current logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withStatorCurrent()
+  {
+    doubleFields.get(DoubleTelemetryField.StatorCurrent).enable();
+    return this;
+  }
 
-    /**
-     * Enables the mechanism position logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withMechanismPosition() {
-        mechanismPositionEnabled = true;
-        return this;
-    }
+  /**
+   * Enables the temperature logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withTemperature()
+  {
+    doubleFields.get(DoubleTelemetryField.MotorTemperature).enable();
+    return this;
+  }
 
-    /**
-     * Enables the mechanism velocity logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withMechanismVelocity() {
-        mechanismVelocityEnabled = true;
-        return this;
-    }
+  /**
+   * Enables the distance logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withMeasurementPosition()
+  {
+    doubleFields.get(DoubleTelemetryField.MeasurementPosition).enable();
+    return this;
+  }
 
-    /**
-     * Enables the rotor position logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withRotorPosition() {
-        rotorPositionEnabled = true;
-        return this;
-    }
+  /**
+   * Enables the linear velocity logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withMeasurementVelocity()
+  {
+    doubleFields.get(DoubleTelemetryField.MeasurementVelocity).enable();
+    return this;
+  }
 
-    /**
-     * Enables the rotor velocity logging if available.
-     *
-     * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
-     */
-    public SmartMotorControllerTelemetryConfig withRotorVelocity() {
-        rotorVelocityEnabled = true;
-        return this;
-    }
+  /**
+   * Enables the mechanism position logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withMechanismPosition()
+  {
+    doubleFields.get(DoubleTelemetryField.MechanismPosition).enable();
+    return this;
+  }
+
+  /**
+   * Enables the mechanism velocity logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withMechanismVelocity()
+  {
+    doubleFields.get(DoubleTelemetryField.MechanismVelocity).enable();
+    return this;
+  }
+
+  /**
+   * Enables the rotor position logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withRotorPosition()
+  {
+    doubleFields.get(DoubleTelemetryField.RotorPosition).enable();
+    return this;
+  }
+
+  /**
+   * Enables the rotor velocity logging if available.
+   *
+   * @return {@link SmartMotorControllerTelemetryConfig} for chaining.
+   */
+  public SmartMotorControllerTelemetryConfig withRotorVelocity()
+  {
+    doubleFields.get(DoubleTelemetryField.RotorVelocity).enable();
+    return this;
+  }
 }

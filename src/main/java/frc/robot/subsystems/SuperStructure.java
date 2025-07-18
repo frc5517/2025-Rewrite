@@ -2,8 +2,11 @@ package frc.robot.subsystems;
 
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Distance;
+import edu.wpi.first.wpilibj.LEDPattern;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.Constants;
 import frc.robot.subsystems.swerve.SwerveSubsystem;
 import frc.robot.utils.PoseSelector;
@@ -29,15 +32,17 @@ public class SuperStructure extends SubsystemBase {
         this.led = led;
     }
 
-    public Command autoScore(ScoreLevels level) {
-        return swerve.driveToReef(selector)
-                .alongWith(elevator.setHeight(getElevatorSetpoint(level)))
-                .alongWith(arm.setAngle(getArmSetpoint(level))
-                        .alongWith(scoreWhenReady(level)));
+    public Command autoScore(ScoreLevels level, Trigger speedBoost) {
+        return swerve.driveToReef(selector, speedBoost, 1)
+                //.alongWith(elevator.setHeight(getElevatorSetpoint(level)))
+                .alongWith(arm.setAngle(getArmSetpoint(level)))
+                .alongWith(setLEDRainbow())
+                .alongWith(scoreWhenReady(level));
     }
 
-    public Command autoCollect() {
-        return swerve.driveToStation(selector)
+    public Command autoCollect(Trigger speedBoost) {
+        return swerve.driveToStation(selector, speedBoost, 1)
+                .alongWith(setLEDRainbow())
                 .andThen(intakeShooter.intakeUntilSensed());
     }
 
@@ -46,6 +51,12 @@ public class SuperStructure extends SubsystemBase {
                 .onlyIf(swerve.atReef(selector)
                         .and(() -> elevator.atHeight(getElevatorSetpoint(level)))
                         .and(() -> arm.atAngle(getArmSetpoint(level))));
+    }
+
+    private Command setLEDRainbow() {
+        return Commands.run(() -> {
+           led.runPatternBoth(led.rainbow, led.rainbow);
+        }).finallyDo(() -> led.runPatternBoth(LEDPattern.kOff, LEDPattern.kOff));
     }
 
     private Angle getArmSetpoint(ScoreLevels levels) {

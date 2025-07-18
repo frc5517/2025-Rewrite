@@ -1,11 +1,10 @@
 package yams.mechanisms.config;
 
-import java.util.Optional;
-import java.util.OptionalDouble;
-
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj.util.Color8Bit;
+import java.util.Optional;
+import java.util.OptionalDouble;
 import yams.exceptions.PivotConfigurationException;
 import yams.mechanisms.config.MechanismPositionConfig.Plane;
 import yams.motorcontrollers.SmartMotorController;
@@ -18,39 +17,40 @@ public class PivotConfig
   /**
    * {@link SmartMotorController} for the {@link yams.mechanisms.positional.Pivot}
    */
-  private final SmartMotorController motor;
-  /**
-   * Telemetry name.
-   */
-  private       Optional<String>     telemetryName = Optional.empty();
+  private final SmartMotorController         motor;
   /**
    * The network root of the mechanism (Optional).
    */
-  protected Optional<String> networkRoot = Optional.empty();
+  @Deprecated
+  protected     Optional<String>             networkRoot             = Optional.empty();
+  /**
+   * Telemetry name.
+   */
+  private       Optional<String>             telemetryName           = Optional.empty();
   /**
    * Telemetry verbosity
    */
-  private Optional<TelemetryVerbosity> telemetryVerbosity = Optional.empty();
+  private       Optional<TelemetryVerbosity> telemetryVerbosity      = Optional.empty();
   /**
    * Lower Hard Limit for the {@link yams.mechanisms.positional.Pivot} to be representing in simulation.
    */
-  private Optional<Angle>              lowerHardLimit     = Optional.empty();
+  private       Optional<Angle>              lowerHardLimit          = Optional.empty();
   /**
    * Upper hard limit for the {@link yams.mechanisms.positional.Pivot} representing in simulation.
    */
-  private Optional<Angle>              upperHardLimit     = Optional.empty();
+  private       Optional<Angle>              upperHardLimit          = Optional.empty();
   /**
    * {@link yams.mechanisms.positional.Pivot} MOI from CAD software. If not given estimated with length and weight.
    */
-  private OptionalDouble               moi                = OptionalDouble.empty();
+  private       OptionalDouble               moi                     = OptionalDouble.empty();
   /**
    * Sim color value
    */
-  private Color8Bit                    simColor           = new Color8Bit(Color.kOrange);
+  private       Color8Bit                    simColor                = new Color8Bit(Color.kOrange);
   /**
    * Mechanism position configuration for the {@link yams.mechanisms.positional.Pivot}
    */
-  private MechanismPositionConfig mechanismPositionConfig = new MechanismPositionConfig();
+  private       MechanismPositionConfig      mechanismPositionConfig = new MechanismPositionConfig();
 
   /**
    * Pivot Configuration class
@@ -97,8 +97,8 @@ public class PivotConfig
    */
   public PivotConfig withTelemetry(String telemetryName, TelemetryVerbosity telemetryVerbosity)
   {
-    this.telemetryName = telemetryName == null ? Optional.empty() : Optional.of(telemetryName);
-    this.telemetryVerbosity = telemetryVerbosity == null ? Optional.empty() : Optional.of(telemetryVerbosity);
+    this.telemetryName = Optional.ofNullable(telemetryName);
+    this.telemetryVerbosity = Optional.ofNullable(telemetryVerbosity);
     return this;
   }
 
@@ -109,17 +109,18 @@ public class PivotConfig
    * @param telemetryVerbosity Telemetry verbosity to apply.
    * @return {@link ArmConfig} for chaining.
    */
+  @Deprecated
   public PivotConfig withTelemetry(String networkRoot, String telemetryName, TelemetryVerbosity telemetryVerbosity)
   {
     this.networkRoot = Optional.ofNullable(networkRoot);
-    this.telemetryName = telemetryName == null ? Optional.empty() : Optional.of(telemetryName);
-    this.telemetryVerbosity = telemetryVerbosity == null ? Optional.empty() : Optional.of(telemetryVerbosity);
+    this.telemetryName = Optional.ofNullable(telemetryName);
+    this.telemetryVerbosity = Optional.ofNullable(telemetryVerbosity);
     return this;
   }
 
   /**
    * Set the elevator mechnism position configuration.
-   * 
+   *
    * @param mechanismPositionConfig {@link MechanismPositionConfig} for the {@link yams.mechanisms.positional.Elevator}
    * @return {@link PivotConfig} for chaining
    */
@@ -177,8 +178,8 @@ public class PivotConfig
    */
   public PivotConfig withHardLimit(Angle min, Angle max)
   {
-    lowerHardLimit = min == null ? Optional.empty() : Optional.of(min);
-    upperHardLimit = max == null ? Optional.empty() : Optional.of(max);
+    lowerHardLimit = Optional.ofNullable(min);
+    upperHardLimit = Optional.ofNullable(max);
     return this;
   }
 
@@ -278,17 +279,20 @@ public class PivotConfig
   /**
    * Get the {@link MechanismPositionConfig} associated with this {@link PivotConfig}.
    *
-   * @return An {@link Optional} containing the {@link MechanismPositionConfig} if present, otherwise an empty {@link Optional}.
+   * @return An {@link Optional} containing the {@link MechanismPositionConfig} if present, otherwise an empty
+   * {@link Optional}.
    */
   public MechanismPositionConfig getMechanismPositionConfig()
   {
     return mechanismPositionConfig;
-  } 
+  }
 
   /**
    * Get the network root of the mechanism.
+   *
    * @return Optional containing the network root if set, otherwise an empty Optional.
    */
+  @Deprecated
   public Optional<String> getNetworkRoot()
   {
     return networkRoot;

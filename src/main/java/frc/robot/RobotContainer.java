@@ -6,7 +6,6 @@
 package frc.robot;
 
 import com.pathplanner.lib.auto.AutoBuilder;
-import com.pathplanner.lib.auto.NamedCommands;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Filesystem;
@@ -26,7 +25,9 @@ import frc.robot.utils.maplesim.opponents.kitbotpro.KitBotPro;
 import swervelib.SwerveInputStream;
 
 import java.io.File;
+import java.util.function.DoubleSupplier;
 
+import static edu.wpi.first.units.Units.Inches;
 
 public class RobotContainer {
     private final SendableChooser<BindingsSelector.BindingType> bindingSendable = new SendableChooser<>();
@@ -43,18 +44,6 @@ public class RobotContainer {
     private final AddressableLEDSubsystem led = new AddressableLEDSubsystem();
     private final SuperStructure structure = new SuperStructure(
             swerve, poseSelector, arm, elevator, intakeShooter, led);
-    private final SwerveInputStream xboxStream = SwerveInputStream.of(swerve.getSwerveDrive(),
-                    () -> driverXbox.getLeftY() * -1,
-                    () -> driverXbox.getLeftX() * -1)
-            .cubeTranslationControllerAxis(true)
-            .withControllerRotationAxis(() -> driverXbox.getRightX() * -1)
-            .deadband(Constants.OperatorConstants.DEADBAND)
-            .scaleTranslation(.8)
-            .scaleRotation(.4)
-            .robotRelative(true)
-            .allianceRelativeControl(false)
-            .translationHeadingOffset(Rotation2d.k180deg);
-    Command driveXboxCommand = swerve.driveFieldOriented(xboxStream);
     private SendableChooser<Command> autoChooser;
 
     public RobotContainer() {
@@ -84,162 +73,151 @@ public class RobotContainer {
         SmartDashboard.putData("RobotTelemetry/Control Type", bindingSendable);
     }
 
-//
-//  Autonomous stuff
-//
-
     public void configureBindings() {
-        // Always on controls
-        // TO-DO: add always on to force update controls.
-
-        switch (bindingSendable.getSelected()) {
-            case SINGLE_XBOX:
-                swerve.setDefaultCommand(driveXboxCommand);
-                break;
-            case DUAL_XBOX:
-                swerve.setDefaultCommand(Commands.run(Commands::none, swerve));
-                break;
-            case SINGLE_STICK:
-                swerve.setDefaultCommand(Commands.run(Commands::none, swerve));
-                break;
-            case DUAL_STICK:
-                swerve.setDefaultCommand(Commands.run(Commands::none, swerve));
-                break;
-            case SINGLE_STICK_XBOX:
-                swerve.setDefaultCommand(Commands.run(Commands::none, swerve));
-                break;
-            case DUAL_STICK_XBOX:
-                swerve.setDefaultCommand(Commands.run(Commands::none, swerve));
-                break;
-            case TESTING:
-                swerve.setDefaultCommand(driveXboxCommand);
-                break;
-        }
-
-        /*
-            Single Xbox Bindings
-         */
-
-        Trigger isSingleXbox = new Trigger(() -> bindingSendable.getSelected() == BindingsSelector.BindingType.SINGLE_XBOX);
-
-        isSingleXbox.and(driverXbox.povUp()).onTrue(Commands.runOnce(poseSelector::selectNorth));
-        isSingleXbox.and(driverXbox.povUpRight()).onTrue(Commands.runOnce(poseSelector::selectNorthEast));
-        isSingleXbox.and(driverXbox.povDownRight()).onTrue(Commands.runOnce(poseSelector::selectSouthEast));
-        isSingleXbox.and(driverXbox.povDown()).onTrue(Commands.runOnce(poseSelector::selectSouth));
-        isSingleXbox.and(driverXbox.povDownLeft()).onTrue(Commands.runOnce(poseSelector::selectSouthWest));
-        isSingleXbox.and(driverXbox.povUpLeft()).onTrue(Commands.runOnce(poseSelector::selectNorthWest));
-
-        // Choose left or right pose, used in station and reef
-        isSingleXbox.and(driverXbox.povRight()).onTrue(Commands.runOnce(poseSelector::selectRight));
-        isSingleXbox.and(driverXbox.povLeft()).onTrue(Commands.runOnce(poseSelector::selectLeft));
-
-        // Cycle cage and station poses
-        isSingleXbox.and(driverXbox.leftBumper()).onTrue(Commands.runOnce(poseSelector::cycleStationSlotDown));
-        isSingleXbox.and(driverXbox.rightBumper()).onTrue(Commands.runOnce(poseSelector::cycleStationSlotUp));
-
-        // Slow speed while holding the left trigger
-        isSingleXbox.and(driverXbox.leftTrigger()).whileTrue(Commands.runEnd(
-                () -> xboxStream.scaleTranslation(0.3)
-                        .scaleRotation(0.2),
-                () -> xboxStream.scaleTranslation(0.8)
-                        .scaleRotation(0.6)
-        ));
-        // Boost speed while holding the right trigger
-        isSingleXbox.and(driverXbox.rightTrigger()).whileTrue(Commands.runEnd(
-                () -> xboxStream.scaleTranslation(1)
-                        .scaleRotation(.75),
-                () -> xboxStream.scaleTranslation(.8)
-                        .scaleRotation(.6)
-        ));
-
-        // Toggle to invert controls
-        isSingleXbox.and(driverXbox.back()).toggleOnTrue(Commands.runEnd(
-                () -> xboxStream.translationHeadingOffset(true),
-                () -> xboxStream.translationHeadingOffset(false)
-        ));
-
-        // Toggle field or robot relative speeds
-        isSingleXbox.and(driverXbox.start()).toggleOnTrue(Commands.runEnd(
-                () -> xboxStream.robotRelative(false)
-                        .allianceRelativeControl(true),
-                () -> xboxStream.robotRelative(true)
-                        .allianceRelativeControl(false)
-        ));
-
-        // Drive to reef
-        isSingleXbox.and(driverXbox.a()).whileTrue(structure.autoCollect());
-        // Drive to station
-        isSingleXbox.and(driverXbox.b()).whileTrue(structure.autoScore(SuperStructure.ScoreLevels.SCORE_L2));
-        // Drive to processor
-        isSingleXbox.and(driverXbox.x()).whileTrue(structure.autoScore(SuperStructure.ScoreLevels.SCORE_L3));
-        // Drive into climb
-        isSingleXbox.and(driverXbox.y()).whileTrue(
-                swerve.driveToCage(poseSelector)
-                        .until(swerve.atCage(poseSelector))
-                        .andThen(swerve.driveBackwards()
-                                .withTimeout(.6)));
-
-
-        /*
-            Test Bindings
-         */
-        Trigger isTesting = new Trigger(() -> bindingSendable.getSelected() == BindingsSelector.BindingType.TESTING);
-
-        isTesting.and(driverXbox.start()).onTrue(Commands.runOnce(() -> MapleSim.addCoralAllStations(false)));
-        isTesting.and(driverXbox.back()).onTrue(Commands.runOnce(MapleSim::clearMatchData));
-
-        isTesting.and(driverXbox.a()).whileTrue(structure.autoScore(SuperStructure.ScoreLevels.SCORE_L1));
-        isTesting.and(driverXbox.b()).whileTrue(structure.autoScore(SuperStructure.ScoreLevels.SCORE_L1));
-        isTesting.and(driverXbox.x()).whileTrue(structure.autoScore(SuperStructure.ScoreLevels.SCORE_L1));
-        isTesting.and(driverXbox.y()).whileTrue(structure.autoScore(SuperStructure.ScoreLevels.SCORE_L1));
-        isTesting.and(driverXbox.start()).whileTrue(arm.sysId().alongWith(elevator.sysId()));
-
-        isTesting.and(driverXbox.leftBumper()).whileTrue(intakeShooter.intake());
-        isTesting.and(driverXbox.rightBumper()).whileTrue(intakeShooter.shoot());
+        singleXboxBindings();
+        dualXboxBindings();
+        singleStickBindings();
+        dualStickBindings();
+        singleStickXboxBindings();
+        dualStickXboxBindings();
+        testBindings();
     }
 
     public void setupAutonomous() {
-//        NamedCommands.registerCommand("structuresToL1", superStructure.structureToL1());
-//        NamedCommands.registerCommand("structuresToL2", superStructure.structureToL2());
-//        NamedCommands.registerCommand("structuresToL3", superStructure.structureToL3());
-//        NamedCommands.registerCommand("structuresToL4", superStructure.structureToL4());
-//        NamedCommands.registerCommand("intake", intakeShooterSubsystem.intake());
-//        NamedCommands.registerCommand("shoot", intakeShooterSubsystem.shoot());
-//
-//        NamedCommands.registerCommand("enablePID", superStructure.enablePID()
-//                .andThen(superStructure.updateStowCommand()));
-//        NamedCommands.registerCommand("disablePID", superStructure.disablePID()
-//                .andThen(superStructure.updateStowCommand()));
-//
-//        NamedCommands.registerCommand("getCoral", superStructure.getCoral());
-//        NamedCommands.registerCommand("scoreL1", superStructure.scoreL1());
-//        NamedCommands.registerCommand("scoreL2", superStructure.scoreL2());
-//        NamedCommands.registerCommand("scoreL3", superStructure.scoreL3());
-//        NamedCommands.registerCommand("scoreL4", superStructure.scoreL4());
-
-//        NamedCommands.registerCommand("cycleStationUp", Commands.runOnce(poseSelector::cycleStationSlotUp));
-//        NamedCommands.registerCommand("cycleStationDown", Commands.runOnce(poseSelector::cycleStationSlotDown));
-//        NamedCommands.registerCommand("selectSlot1", Commands.runOnce(poseSelector::selectSlot1));
-//        NamedCommands.registerCommand("selectSlot2", Commands.runOnce(poseSelector::selectSlot2));
-//        NamedCommands.registerCommand("selectSlot3", Commands.runOnce(poseSelector::selectSlot3));
-//
-//        NamedCommands.registerCommand("selectSouth", Commands.runOnce(poseSelector::selectSouth));
-//        NamedCommands.registerCommand("selectSoutheast", Commands.runOnce(poseSelector::selectSouthEast));
-//        NamedCommands.registerCommand("selectSouthwest", Commands.runOnce(poseSelector::selectSouthWest));
-//        NamedCommands.registerCommand("selectNorth", Commands.runOnce(poseSelector::selectNorth));
-//        NamedCommands.registerCommand("selectNortheast", Commands.runOnce(poseSelector::selectNorthEast));
-//        NamedCommands.registerCommand("selectNorthwest", Commands.runOnce(poseSelector::selectNorthWest));
-//        NamedCommands.registerCommand("selectLeft", Commands.runOnce(poseSelector::selectLeft));
-//        NamedCommands.registerCommand("selectRight", Commands.runOnce(poseSelector::selectRight));
-//        NamedCommands.registerCommand("driveToReef", Commands.defer(() -> swerve.driveToPose(poseSelector::flippedReefPose, elevator.scaleForDrive(.8)), Set.of(swerve)));
-//        NamedCommands.registerCommand("driveToStation", Commands.defer(() -> swerve.driveToPose(poseSelector::flippedStationPose, elevatorSubsystem.scaleForDrive(.8)), Set.of(drivebase)));
-
+        // Named Commands go here
+        //NamedCommands.registerCommand("GUI NAME", theCommand());
         autoChooser = AutoBuilder.buildAutoChooser();
-
         SmartDashboard.putData(autoChooser);
     }
 
     public Command getAutonomousCommand() {
         return autoChooser.getSelected();
+    }
+
+    private void singleXboxBindings() {
+        final SwerveInputStream inputStream = getInputStream(
+                () -> driverXbox.getLeftY() * -1,
+                () -> driverXbox.getLeftX() * -1,
+                () -> driverXbox.getRightX() * -1).copy();
+        Command driveXboxCommand = swerve.driveFieldOriented(inputStream);
+        Trigger isMode = new Trigger(() -> bindingSendable.getSelected() == BindingsSelector.BindingType.SINGLE_XBOX);
+        isMode.onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(driveXboxCommand)));
+        isMode.and(driverXbox.povUp()).onTrue(Commands.runOnce(poseSelector::selectNorth));
+        isMode.and(driverXbox.povUpRight()).onTrue(Commands.runOnce(poseSelector::selectNorthEast));
+        isMode.and(driverXbox.povDownRight()).onTrue(Commands.runOnce(poseSelector::selectSouthEast));
+        isMode.and(driverXbox.povDown()).onTrue(Commands.runOnce(poseSelector::selectSouth));
+        isMode.and(driverXbox.povDownLeft()).onTrue(Commands.runOnce(poseSelector::selectSouthWest));
+        isMode.and(driverXbox.povUpLeft()).onTrue(Commands.runOnce(poseSelector::selectNorthWest));
+
+        // Choose left or right pose, used in station and reef
+        isMode.and(driverXbox.povRight()).onTrue(Commands.runOnce(poseSelector::selectRight));
+        isMode.and(driverXbox.povLeft()).onTrue(Commands.runOnce(poseSelector::selectLeft));
+
+        // Cycle cage and station poses
+        isMode.and(driverXbox.leftBumper()).onTrue(Commands.runOnce(poseSelector::cycleStationSlotDown));
+        isMode.and(driverXbox.rightBumper()).onTrue(Commands.runOnce(poseSelector::cycleStationSlotUp));
+
+        // Slow speed while holding the left trigger
+        isMode.and(driverXbox.leftTrigger()).whileTrue(Commands.runEnd(
+                () -> inputStream.scaleTranslation(0.3)
+                        .scaleRotation(0.2),
+                () -> inputStream.scaleTranslation(0.8)
+                        .scaleRotation(0.6)
+        ));
+        // Boost speed while holding the right trigger
+        isMode.and(driverXbox.rightTrigger()).whileTrue(Commands.runEnd(
+                () -> inputStream.scaleTranslation(1)
+                        .scaleRotation(.75),
+                () -> inputStream.scaleTranslation(.8)
+                        .scaleRotation(.6)
+        ));
+
+        // Toggle to invert controls
+        isMode.and(driverXbox.back()).toggleOnTrue(Commands.runEnd(
+                () -> inputStream.translationHeadingOffset(true),
+                () -> inputStream.translationHeadingOffset(false)
+        ));
+
+        // Toggle field or robot relative speeds
+        isMode.and(driverXbox.start()).toggleOnTrue(Commands.runEnd(
+                () -> inputStream.robotRelative(false)
+                        .allianceRelativeControl(true),
+                () -> inputStream.robotRelative(true)
+                        .allianceRelativeControl(false)
+        ));
+
+        // Drive to reef
+        isMode.and(driverXbox.a()).whileTrue(structure.autoCollect(driverXbox.rightTrigger()));
+        // Drive to station
+        isMode.and(driverXbox.b()).whileTrue(structure.autoScore(SuperStructure.ScoreLevels.SCORE_L2, driverXbox.rightTrigger()));
+        // Drive to processor
+        isMode.and(driverXbox.x()).whileTrue(structure.autoScore(SuperStructure.ScoreLevels.SCORE_L3, driverXbox.rightTrigger()));
+        // Drive into climb
+        isMode.and(driverXbox.y()).whileTrue(
+                swerve.driveToCage(poseSelector, driverXbox.rightTrigger(), 1)
+                        .until(swerve.atCage(poseSelector))
+                        .andThen(swerve.driveBackwards()
+                                .withTimeout(.6)));
+    }
+
+    private void dualXboxBindings() {
+        Trigger isMode = new Trigger(() -> bindingSendable.getSelected() == BindingsSelector.BindingType.DUAL_XBOX);
+        isMode.onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(Commands.none())));
+    }
+
+    private void singleStickBindings() {
+        Trigger isMode = new Trigger(() -> bindingSendable.getSelected() == BindingsSelector.BindingType.SINGLE_STICK);
+        isMode.onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(Commands.none())));
+    }
+
+    private void dualStickBindings() {
+        Trigger isMode = new Trigger(() -> bindingSendable.getSelected() == BindingsSelector.BindingType.DUAL_STICK);
+        isMode.onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(Commands.none())));
+    }
+
+    private void singleStickXboxBindings() {
+        Trigger isMode = new Trigger(() -> bindingSendable.getSelected() == BindingsSelector.BindingType.SINGLE_STICK_XBOX);
+        isMode.onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(Commands.none())));
+    }
+
+    private void dualStickXboxBindings() {
+        Trigger isMode = new Trigger(() -> bindingSendable.getSelected() == BindingsSelector.BindingType.DUAL_STICK_XBOX);
+        isMode.onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(Commands.none())));
+    }
+
+    private void testBindings() {
+        final SwerveInputStream inputStream = getInputStream(
+                () -> driverXbox.getLeftY() * -1,
+                () -> driverXbox.getLeftX() * -1,
+                () -> driverXbox.getRightX() * -1).copy();
+        Command driveXboxCommand = swerve.driveFieldOriented(inputStream);
+
+        Trigger isMode = new Trigger(() -> bindingSendable.getSelected() == BindingsSelector.BindingType.TESTING);
+        isMode.onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(driveXboxCommand)));
+        isMode.and(driverXbox.start()).onTrue(Commands.runOnce(() -> MapleSim.addCoralAllStations(false)));
+        isMode.and(driverXbox.back()).onTrue(Commands.runOnce(MapleSim::clearMatchData));
+
+        isMode.and(driverXbox.a()).whileTrue(elevator.elevCmd(.5)).onFalse(elevator.elevCmd(0.0));
+        isMode.and(driverXbox.b()).whileTrue(elevator.elevCmd(-.5));
+        isMode.and(driverXbox.x()).whileTrue(elevator.setHeight(Inches.of(12)));
+        isMode.and(driverXbox.y()).whileTrue(elevator.setHeight(Inches.of(60)));
+        isMode.and(driverXbox.start()).whileTrue(arm.sysId().alongWith(elevator.sysId()));
+
+        isMode.and(driverXbox.leftBumper()).whileTrue(intakeShooter.intake());
+        isMode.and(driverXbox.rightBumper()).whileTrue(intakeShooter.shoot());
+    }
+
+    public SwerveInputStream getInputStream(DoubleSupplier x, DoubleSupplier y, DoubleSupplier rotation) {
+        return SwerveInputStream.of(
+                swerve.getSwerveDrive(),
+                x, y)
+                .cubeTranslationControllerAxis(true)
+                .withControllerRotationAxis(rotation)
+                .deadband(Constants.OperatorConstants.DEADBAND)
+                .scaleTranslation(.8)
+                .scaleRotation(.4)
+                .robotRelative(true)
+                .allianceRelativeControl(false)
+                .translationHeadingOffset(Rotation2d.k180deg);
     }
 }

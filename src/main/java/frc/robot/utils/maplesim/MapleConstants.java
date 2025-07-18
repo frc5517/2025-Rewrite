@@ -9,14 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MapleConstants {
-
-    public static final int templateInstances = 1;
-    public static final int kitbotInstances = 1;
-
-    public static class ControllerConstants {
-        public static final double DEADBAND = 0.1;
-    }
-
     public static class PoseConstants {
         /* If an opponent robot is not on the field, it is placed in a queening position for performance. */
         public static final Pose2d[] ROBOT_QUEENING_POSITIONS = new Pose2d[]
@@ -84,12 +76,12 @@ public class MapleConstants {
                 Units.inchesToMeters(130.144),
                 Rotation2d.fromDegrees(60));
         public static final Transform2d BRANCH_OFFSET_LEFT = new Transform2d(
-                Units.inchesToMeters(-28), // Offset away from reef.
+                Units.inchesToMeters(-28), // Offset away from the reef.
                 Units.inchesToMeters(13 / 2.0), // Offset to left branch.
                 Rotation2d.kZero);
         public static final Transform2d BRANCH_OFFSET_RIGHT = new Transform2d(
-                Units.inchesToMeters(-28), // Offset away from reef.
-                Units.inchesToMeters(-13 / 2.0), // Offset to right branch.
+                Units.inchesToMeters(-28), // Offset away from the reef.
+                Units.inchesToMeters(-13 / 2.0), // Offset to the right branch.
                 Rotation2d.kZero);
         public static final Pose2d REEF_NORTH_LEFT_POSE =
                 NORTH_FACE_POSE.plus(BRANCH_OFFSET_LEFT);

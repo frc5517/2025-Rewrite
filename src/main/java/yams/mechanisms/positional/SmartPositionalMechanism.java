@@ -16,6 +16,7 @@ import yams.motorcontrollers.SmartMotorController;
  */
 public abstract class SmartPositionalMechanism extends SmartMechanism
 {
+
   /**
    * The root point of the Mechanism.
    */
@@ -55,12 +56,12 @@ public abstract class SmartPositionalMechanism extends SmartMechanism
   public abstract Command sysId(Voltage maximumVoltage, Velocity<VoltageUnit> step, Time duration);
 
   /**
-   * Get the ligament of the 2D mechanism model. Used to change the position of the mechanism model
-   * in the SmartDashboard.
+   * Get the ligament of the 2D mechanism model. Used to change the position of the mechanism model in the
+   * SmartDashboard.
    *
    * @return Ligament of the 2D mechanism model.
    */
-  public MechanismLigament2d getMechanismLigament() 
+  public MechanismLigament2d getMechanismLigament()
   {
     return mechanismLigament;
   }
@@ -70,7 +71,7 @@ public abstract class SmartPositionalMechanism extends SmartMechanism
    *
    * @return Root of the 2D mechanism model.
    */
-  public MechanismRoot2d getMechanismRoot() 
+  public MechanismRoot2d getMechanismRoot()
   {
     return mechanismRoot;
   }
@@ -80,7 +81,7 @@ public abstract class SmartPositionalMechanism extends SmartMechanism
    *
    * @return Motor controller which is moving the mechanism.
    */
-  public SmartMotorController getMotor() 
+  public SmartMotorController getMotor()
   {
     return m_motor;
   }

@@ -9,8 +9,6 @@ import static edu.wpi.first.units.Units.Seconds;
 
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Translation3d;
-import edu.wpi.first.networktables.NetworkTable;
-import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.units.VoltageUnit;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Time;
@@ -66,11 +64,10 @@ public class Arm extends SmartPositionalMechanism
     }
     if (config.getTelemetryName().isPresent())
     {
-      NetworkTable table = NetworkTableInstance.getDefault().getTable(config.getNetworkRoot().orElse("Tuning"))
-                                               .getSubTable(config.getTelemetryName().get());
-      m_telemetry.setupTelemetry(table);
-      m_telemetry.units.set("Degrees");
-      m_motor.updateTelemetry(table);
+      // TODO: Add telemetry units to config.
+      m_telemetry.setupTelemetry(config.getTelemetryName().get(), m_motor, "Degrees",
+                                 config.getStartingAngle().get(),
+                                 config.getStartingAngle().get());
     }
     config.applyConfig();
 
@@ -110,8 +107,10 @@ public class Arm extends SmartPositionalMechanism
                                                   0.002 / 4096.0,
                                                   0.0));// Add noise with a std-dev of 1 tick
 
-      mechanismWindow = new Mechanism2d(config.getMechanismPositionConfig().getWindowXDimension(config.getLength().get()).in(Meters),
-                                        config.getMechanismPositionConfig().getWindowYDimension(config.getLength().get()).in(Meters));
+      mechanismWindow = new Mechanism2d(config.getMechanismPositionConfig()
+                                              .getWindowXDimension(config.getLength().get()).in(Meters),
+                                        config.getMechanismPositionConfig()
+                                              .getWindowYDimension(config.getLength().get()).in(Meters));
       mechanismRoot = mechanismWindow.getRoot(
           config.getTelemetryName().isPresent() ? config.getTelemetryName().get() + "Root" : "ArmRoot",
           config.getMechanismPositionConfig().getMechanismX(config.getLength().get()).in(Meters),
@@ -153,9 +152,8 @@ public class Arm extends SmartPositionalMechanism
   @Override
   public void updateTelemetry()
   {
-    m_telemetry.positionPublisher.set(m_motor.getMechanismPosition().in(Degrees));
-    m_motor.getMechanismPositionSetpoint().ifPresent(m_setpoint -> m_telemetry.setpointPublisher.set(m_setpoint.in(
-        Degrees)));
+    m_telemetry.updatePosition(getAngle());
+    m_motor.getMechanismPositionSetpoint().ifPresent(m_setpoint -> m_telemetry.updateSetpoint(m_setpoint));
     m_motor.updateTelemetry();
   }
 
@@ -185,28 +183,31 @@ public class Arm extends SmartPositionalMechanism
 
   /**
    * Updates the mechanism ligament with the current angle of the arm.
-   * 
+   *
    * @see SmartPositionalMechanism#visualizationUpdate()
    */
   @Override
-  public void visualizationUpdate() 
+  public void visualizationUpdate()
   {
     mechanismLigament.setAngle(getAngle().in(Degrees));
   }
 
   /**
-   * Get the relative position of the mechanism, taking into account the relative position defined
-   * in the {@link MechanismPositionConfig}.
+   * Get the relative position of the mechanism, taking into account the relative position defined in the
+   * {@link MechanismPositionConfig}.
    *
    * @return The relative position of the mechanism as a {@link Translation3d}.
    */
   @Override
   public Translation3d getRelativeMechanismPosition()
-  { 
+  {
     Plane movementPlane = m_config.getMechanismPositionConfig().getMovementPlane();
-    Translation3d mechanismTranslation = new Translation3d(mechanismLigament.getLength(), 
-      new Rotation3d(Plane.YZ == movementPlane ? mechanismLigament.getAngle() : 0, 
-                    Plane.XZ == movementPlane ? mechanismLigament.getAngle() : 0, 0));
+    Translation3d mechanismTranslation = new Translation3d(mechanismLigament.getLength(),
+                                                           new Rotation3d(
+                                                               Plane.YZ == movementPlane ? mechanismLigament.getAngle()
+                                                                                         : 0,
+                                                               Plane.XZ == movementPlane ? mechanismLigament.getAngle()
+                                                                                         : 0, 0));
     if (m_config.getMechanismPositionConfig().getRelativePosition().isPresent())
     {
       return m_config.getMechanismPositionConfig().getRelativePosition().get()

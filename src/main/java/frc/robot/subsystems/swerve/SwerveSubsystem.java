@@ -17,17 +17,13 @@ import com.pathplanner.lib.util.DriveFeedforwards;
 import com.pathplanner.lib.util.swerve.SwerveSetpoint;
 import com.pathplanner.lib.util.swerve.SwerveSetpointGenerator;
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Transform2d;
-import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.geometry.*;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.trajectory.Trajectory;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -49,9 +45,7 @@ import swervelib.telemetry.SwerveDriveTelemetry;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
@@ -140,8 +134,6 @@ public class SwerveSubsystem extends SubsystemBase {
             swerveDrive.updateOdometry();
             vision.updatePoseEstimation(swerveDrive);
         }
-        SmartDashboard.putNumber("Max Angular", swerveDrive.getMaximumChassisAngularVelocity());
-
         if (!isMoving(0.01) && !DriverStation.isAutonomous()) {
             lock();
         }
@@ -272,18 +264,18 @@ public class SwerveSubsystem extends SubsystemBase {
         );
 
         return
-                // Path find to pose
+                // Path finds to pose
                 AutoBuilder.pathfindThenFollowPath(
                         path,
                         constraints
-                );
+                ).until(() -> poseIsNear(pose.get(), getPose(), Constants.DrivebaseConstants.kTranslationTolerance));
     }
 
-    public Command driveToReef(PoseSelector poseSelector) {
+    public Command driveToReef(PoseSelector poseSelector, Trigger speedBoost, double boostSpeed) {
         return Commands.defer(() ->
                 driveToPose(
                         poseSelector::flippedReefPose,
-                        Constants.DrivebaseConstants.kDriveToReef
+                        speedBoost.getAsBoolean() ? boostSpeed : Constants.DrivebaseConstants.kDriveToReef
                 ), Set.of(this));
     }
 
@@ -297,11 +289,11 @@ public class SwerveSubsystem extends SubsystemBase {
                 ));
     }
 
-    public Command driveToStation(PoseSelector poseSelector) {
+    public Command driveToStation(PoseSelector poseSelector, Trigger speedBoost, double boostSpeed) {
         return Commands.defer(() ->
                 driveToPose(
                         poseSelector::flippedStationPose,
-                        Constants.DrivebaseConstants.kDriveToStation
+                        speedBoost.getAsBoolean() ? boostSpeed : Constants.DrivebaseConstants.kDriveToStation
                 ), Set.of(this));
     }
 
@@ -315,11 +307,11 @@ public class SwerveSubsystem extends SubsystemBase {
                 ));
     }
 
-    public Command driveToProcessor(PoseSelector poseSelector) {
+    public Command driveToProcessor(PoseSelector poseSelector, Trigger speedBoost, double boostSpeed) {
         return Commands.defer(() ->
                 driveToPose(
                         poseSelector::flippedProcessorPose,
-                        Constants.DrivebaseConstants.kDriveToProcessor
+                        speedBoost.getAsBoolean() ? boostSpeed : Constants.DrivebaseConstants.kDriveToProcessor
                 ), Set.of(this));
     }
 
@@ -333,11 +325,11 @@ public class SwerveSubsystem extends SubsystemBase {
                 ));
     }
 
-    public Command driveToAlgae(PoseSelector poseSelector) {
+    public Command driveToAlgae(PoseSelector poseSelector, Trigger speedBoost, double boostSpeed) {
         return Commands.defer(() ->
                 driveToPose(
                         poseSelector::flippedAlgaePose,
-                        Constants.DrivebaseConstants.kDriveToAlgae
+                        speedBoost.getAsBoolean() ? boostSpeed : Constants.DrivebaseConstants.kDriveToAlgae
                 ), Set.of(this));
     }
 
@@ -351,11 +343,11 @@ public class SwerveSubsystem extends SubsystemBase {
                 ));
     }
 
-    public Command driveToCage(PoseSelector poseSelector) {
+    public Command driveToCage(PoseSelector poseSelector, Trigger speedBoost, double boostSpeed) {
         return Commands.defer(() ->
                 driveToPose(
                         poseSelector::flippedCagePose,
-                        Constants.DrivebaseConstants.kDriveToCage
+                        speedBoost.getAsBoolean() ? boostSpeed : Constants.DrivebaseConstants.kDriveToCage
                 ), Set.of(this));
     }
 
@@ -400,7 +392,7 @@ public class SwerveSubsystem extends SubsystemBase {
         double expectedRotation = expected.getRotation().getDegrees();
         double actualRotation = actual.getRotation().getDegrees();
         // Gets the absolute value of expected pose minus actual pose, if the actual pose is exactly right it would return 0.
-        // Since it is unreasonable to reach 0 a tolerance is added to reach a reasonable state.
+        // Since it is unreasonable to reach 0, a tolerance is added to reach a reasonable state.
         return
                 poseIsNear(
                         expected,
@@ -408,7 +400,6 @@ public class SwerveSubsystem extends SubsystemBase {
                         toleranceMeters) &&
                         Math.abs(expectedRotation - actualRotation) < toleranceDegrees;
     }
-
 
     /**
      * Drive with {@link SwerveSetpointGenerator} from 254, implemented by PathPlanner.

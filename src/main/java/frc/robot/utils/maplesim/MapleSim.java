@@ -3,7 +3,7 @@ package frc.robot.utils.maplesim;
 import com.pathplanner.lib.commands.PathfindingCommand;
 import com.pathplanner.lib.pathfinding.LocalADStar;
 import com.pathplanner.lib.pathfinding.Pathfinding;
-import edu.wpi.first.math.geometry.Pose3d;
+import edu.wpi.first.math.geometry.*;
 import edu.wpi.first.networktables.*;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
@@ -124,7 +124,7 @@ public class MapleSim extends SubsystemBase {
     }
 
     /**
-     * If you don't already schedule the pathplanner warm up command then this should be called after mapleSimInit().
+     * If you don't already schedule the pathplanner warm-up command, then this should be called after mapleSimInit().
      */
     public static void pathplannerWarmup() {
         PathfindingCommand.warmupCommand().schedule();
@@ -151,7 +151,7 @@ public class MapleSim extends SubsystemBase {
      *
      * @param shotGamePiece {@link GamePieceProjectile} to shoot.
      */
-    public static void simAlgaeFeedshot(GamePieceProjectile shotGamePiece) {
+    public static void simAlgaeFeedShot(GamePieceProjectile shotGamePiece) {
         SimulatedArena.getInstance().addGamePieceProjectile(shotGamePiece);
         if (shotGamePiece instanceof ReefscapeAlgaeOnFly) {
             if (shotGamePiece.willHitTarget()) {
@@ -174,13 +174,13 @@ public class MapleSim extends SubsystemBase {
      */
     public static void simShotIfHasPiece(GamePieceProjectile shotGamePiece, IntakeSimulation intake) {
         if (intake.obtainGamePieceFromIntake()) {
-            simAlgaeFeedshot(shotGamePiece);
+            simAlgaeFeedShot(shotGamePiece);
         }
     }
 
     /**
      * Just another basic method that uses in-built Maple-Sim functions.
-     * Drops a coral at all stations at once.
+     * Drops coral at all stations at once.
      *
      * @param isHorizontal whether the coral should be horizontal.
      */
@@ -284,7 +284,7 @@ public class MapleSim extends SubsystemBase {
                         coralOnL4Blue * scoreOnL4 +
                         algaeScoredInNetBlue * scoreInNet);
 
-        // Rounded to hundredth place.
+        // Rounded to the hundredth place.
         scoreTimePublisher.set(
                 (Math.round((matchTimer.get() * 100) - matchTimerOffset) / 100.0));
 

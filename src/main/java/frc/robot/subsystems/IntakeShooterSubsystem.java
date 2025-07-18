@@ -32,7 +32,7 @@ public class IntakeShooterSubsystem extends SubsystemBase {
     private final SparkMax intakeShooterMotor = new SparkMax(IntakeShooterConstants.kMotorID, SparkLowLevel.MotorType.kBrushless);
     private final SmartMotorControllerConfig motorConfig = new SmartMotorControllerConfig(this)
             .withIdleMode(SmartMotorControllerConfig.MotorMode.BRAKE)
-            .withMechanismCircumference(Constants.ElevatorConstants.kMechanismCircumference)
+            .withMechanismCircumference(Constants.ElevatorConstants.kSprocketCircumference)
             .withGearing(gearing(gearbox(1/9.0/3.0), sprocket(12, 28)))
             .withClosedLoopController(
                     IntakeShooterConstants.kKp,

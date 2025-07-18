@@ -2,13 +2,12 @@ package yams.mechanisms.config;
 
 import static edu.wpi.first.units.Units.Degrees;
 
-import java.util.Optional;
-
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.Mass;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj.util.Color8Bit;
+import java.util.Optional;
 import yams.exceptions.SmartMotorControllerConfigurationException;
 import yams.motorcontrollers.SmartMotorController;
 import yams.motorcontrollers.SmartMotorControllerConfig;
@@ -20,43 +19,44 @@ public class ElevatorConfig
   /**
    * {@link SmartMotorController} for the {@link yams.mechanisms.positional.Elevator}
    */
-  private final SmartMotorController motor;
-  /**
-   * Telemetry name.
-   */
-  private       Optional<String>     telemetryName = Optional.empty();
+  private final SmartMotorController         motor;
   /**
    * The network root of the mechanism (Optional).
    */
-  protected Optional<String> networkRoot = Optional.empty();
+  @Deprecated
+  protected     Optional<String>             networkRoot             = Optional.empty();
+  /**
+   * Telemetry name.
+   */
+  private       Optional<String>             telemetryName           = Optional.empty();
   /**
    * Telemetry verbosity
    */
-  private Optional<TelemetryVerbosity> telemetryVerbosity = Optional.empty();
+  private       Optional<TelemetryVerbosity> telemetryVerbosity      = Optional.empty();
   /**
    * Lower Hard Limit for the {@link yams.mechanisms.positional.Elevator} to be representing in simulation.
    */
-  private Optional<Distance>           lowerHardLimit     = Optional.empty();
+  private       Optional<Distance>           lowerHardLimit          = Optional.empty();
   /**
    * Upper hard limit for the {@link yams.mechanisms.positional.Elevator} representing in simulation.
    */
-  private Optional<Distance>           upperHardLimit     = Optional.empty();
+  private       Optional<Distance>           upperHardLimit          = Optional.empty();
   /**
    * {@link yams.mechanisms.positional.Elevator} length for simulation.
    */
-  private Angle                        angle              = Degrees.of(90);
+  private       Angle                        angle                   = Degrees.of(90);
   /**
    * {@link yams.mechanisms.positional.Elevator} carriage mass for simulation.
    */
-  private Optional<Mass>               carriageWeight     = Optional.empty();
+  private       Optional<Mass>               carriageWeight          = Optional.empty();
   /**
    * Sim color value
    */
-  private Color8Bit                    simColor           = new Color8Bit(Color.kOrange);
+  private       Color8Bit                    simColor                = new Color8Bit(Color.kOrange);
   /**
    * Mechanism position configuration for the {@link yams.mechanisms.positional.Pivot} (Optional).
    */
-  private MechanismPositionConfig mechanismPositionConfig = new MechanismPositionConfig();
+  private       MechanismPositionConfig      mechanismPositionConfig = new MechanismPositionConfig();
 
 
   /**
@@ -113,7 +113,7 @@ public class ElevatorConfig
    */
   public ElevatorConfig withMass(Mass mass)
   {
-    this.carriageWeight = mass == null ? Optional.empty() : Optional.of(mass);
+    this.carriageWeight = Optional.ofNullable(mass);
     return this;
   }
 
@@ -126,8 +126,8 @@ public class ElevatorConfig
    */
   public ElevatorConfig withTelemetry(String telemetryName, TelemetryVerbosity telemetryVerbosity)
   {
-    this.telemetryName = telemetryName == null ? Optional.empty() : Optional.of(telemetryName);
-    this.telemetryVerbosity = telemetryVerbosity == null ? Optional.empty() : Optional.of(telemetryVerbosity);
+    this.telemetryName = Optional.ofNullable(telemetryName);
+    this.telemetryVerbosity = Optional.ofNullable(telemetryVerbosity);
     return this;
   }
 
@@ -138,17 +138,18 @@ public class ElevatorConfig
    * @param telemetryVerbosity Telemetry verbosity to apply.
    * @return {@link ArmConfig} for chaining.
    */
+  @Deprecated
   public ElevatorConfig withTelemetry(String networkRoot, String telemetryName, TelemetryVerbosity telemetryVerbosity)
   {
     this.networkRoot = Optional.ofNullable(networkRoot);
-    this.telemetryName = telemetryName == null ? Optional.empty() : Optional.of(telemetryName);
-    this.telemetryVerbosity = telemetryVerbosity == null ? Optional.empty() : Optional.of(telemetryVerbosity);
+    this.telemetryName = Optional.ofNullable(telemetryName);
+    this.telemetryVerbosity = Optional.ofNullable(telemetryVerbosity);
     return this;
   }
 
   /**
    * Set the elevator mechnism position configuration.
-   * 
+   *
    * @param mechanismPositionConfig {@link MechanismPositionConfig} for the {@link yams.mechanisms.positional.Elevator}
    * @return {@link ElevatorConfig} for chaining
    */
@@ -192,8 +193,8 @@ public class ElevatorConfig
    */
   public ElevatorConfig withHardLimits(Distance min, Distance max)
   {
-    lowerHardLimit = min == null ? Optional.empty() : Optional.of(min);
-    upperHardLimit = max == null ? Optional.empty() : Optional.of(max);
+    lowerHardLimit = Optional.ofNullable(min);
+    upperHardLimit = Optional.ofNullable(max);
     return this;
   }
 
@@ -325,8 +326,10 @@ public class ElevatorConfig
 
   /**
    * Get the network root of the mechanism.
+   *
    * @return Optional containing the network root if set, otherwise an empty Optional.
    */
+  @Deprecated
   public Optional<String> getNetworkRoot()
   {
     return networkRoot;

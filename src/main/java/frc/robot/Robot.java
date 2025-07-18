@@ -10,7 +10,6 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.utils.maplesim.MapleSim;
 
-
 public class Robot extends TimedRobot {
     private final RobotContainer robotContainer;
     private Command autonomousCommand;
@@ -19,28 +18,23 @@ public class Robot extends TimedRobot {
         robotContainer = new RobotContainer();
     }
 
-
     @Override
     public void robotPeriodic() {
         CommandScheduler.getInstance().run();
     }
 
-
     @Override
     public void disabledInit() {
     }
-
 
     @Override
     public void disabledPeriodic() {
     }
 
-
     @Override
     public void disabledExit() {
         robotContainer.configureBindings();
     }
-
 
     @Override
     public void autonomousInit() {
@@ -51,16 +45,13 @@ public class Robot extends TimedRobot {
         }
     }
 
-
     @Override
     public void autonomousPeriodic() {
     }
 
-
     @Override
     public void autonomousExit() {
     }
-
 
     @Override
     public void teleopInit() {
@@ -69,11 +60,9 @@ public class Robot extends TimedRobot {
         }
     }
 
-
     @Override
     public void teleopPeriodic() {
     }
-
 
     @Override
     public void teleopExit() {
@@ -89,11 +78,9 @@ public class Robot extends TimedRobot {
         CommandScheduler.getInstance().cancelAll();
     }
 
-
     @Override
     public void testPeriodic() {
     }
-
 
     @Override
     public void testExit() {
