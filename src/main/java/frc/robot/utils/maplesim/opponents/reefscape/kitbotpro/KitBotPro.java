@@ -1,4 +1,4 @@
-package frc.robot.utils.maplesim.opponents.kitbotpro;
+package frc.robot.utils.maplesim.opponents.reefscape.kitbotpro;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -11,7 +11,6 @@ import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.utils.maplesim.opponents.SmartOpponent;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.seasonspecific.reefscape2025.ReefscapeCoralOnFly;
@@ -20,13 +19,13 @@ import java.util.Optional;
 
 import static edu.wpi.first.units.Units.*;
 import static frc.robot.utils.maplesim.MapleConstants.PoseConstants.*;
-import static frc.robot.utils.maplesim.MapleConstants.PoseConstants.BARGE_NET_POSE;
 
 public class KitBotPro extends SmartOpponent {
     private Transform2d bargeOffset = new Transform2d(
             Inches.of(12),
             Inches.of(0),
             Rotation2d.kZero);
+
     public KitBotPro(int id, DriverStation.Alliance alliance) {
         this.opponentMassKG = Optional.of(Kilograms.of(55));
         this.opponentMOI = Optional.of(8.0);
@@ -116,11 +115,11 @@ public class KitBotPro extends SmartOpponent {
      * @return
      */
     public Distance getScoreHeight() {
-        Distance scoreHeight = switch (((int) Math.round(Math.random() * 11))) {
-            case 0, 1, 2, 3 -> Meters.of(.85);
-            case 4, 5, 6 -> Meters.of(1);
-            case 7, 8, 9 -> Meters.of(1.35);
-            case 10, 11 -> Meters.of(2.05);
+        Distance scoreHeight = switch (((int) Math.round(Math.random() * 3))) {
+            case 0 -> Meters.of(.85);
+            case 1 -> Meters.of(1);
+            case 2 -> Meters.of(1.35);
+            case 3 -> Meters.of(2.05);
             default -> Meters.of(.85);
         };
         return scoreHeight;

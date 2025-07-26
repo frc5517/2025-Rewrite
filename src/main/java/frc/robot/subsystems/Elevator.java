@@ -16,7 +16,6 @@ import frc.robot.Constants.ElevatorConstants;
 import frc.robot.utils.Telemetry;
 import yams.mechanisms.config.ElevatorConfig;
 import yams.mechanisms.config.MechanismPositionConfig;
-import yams.mechanisms.positional.Elevator;
 import yams.motorcontrollers.SmartMotorController;
 import yams.motorcontrollers.SmartMotorControllerConfig;
 import yams.motorcontrollers.local.SparkWrapper;
@@ -24,10 +23,10 @@ import yams.motorcontrollers.local.SparkWrapper;
 import static edu.wpi.first.units.Units.*;
 import static frc.robot.utils.Telemetry.limitPublisher;
 
-public class ElevatorSubsystem extends SubsystemBase {
+public class Elevator extends SubsystemBase {
     private final SparkMax elevatorRightMotor = new SparkMax(ElevatorConstants.kRightMotorID, SparkLowLevel.MotorType.kBrushless);
     private final SparkMax elevatorLeftMotor = new SparkMax(ElevatorConstants.kLeftMotorID, SparkLowLevel.MotorType.kBrushless);
-    private final SmartMotorControllerConfig motorConfig   = new SmartMotorControllerConfig(this)
+    private final SmartMotorControllerConfig motorConfig = new SmartMotorControllerConfig(this)
             .withMechanismCircumference(ElevatorConstants.kSprocketCircumference)
             .withClosedLoopController(4, 0, 0, MetersPerSecond.of(2), MetersPerSecondPerSecond.of(3))
             .withSoftLimit(ElevatorConstants.kBottomSoftLimit, ElevatorConstants.kTopSoftLimit)
@@ -42,25 +41,23 @@ public class ElevatorSubsystem extends SubsystemBase {
             .withFeedforward(new ElevatorFeedforward(0, 0, 0, 0))
             .withControlMode(SmartMotorControllerConfig.ControlMode.CLOSED_LOOP)
             .withFollowers(Pair.of(elevatorRightMotor, true));
-    private final SmartMotorController       motor         = new SparkWrapper(elevatorLeftMotor,
+    private final SmartMotorController motor = new SparkWrapper(elevatorLeftMotor,
             DCMotor.getNEO(2),
             motorConfig);
-    private final MechanismPositionConfig    robotToMechanism = new MechanismPositionConfig()
+    private final MechanismPositionConfig robotToMechanism = new MechanismPositionConfig()
             .withMaxRobotHeight(Meters.of(1.5))
             .withMaxRobotLength(Meters.of(0.75))
             .withRelativePosition(new Translation3d(Meters.of(-0.25), Meters.of(0), Meters.of(0.5)));
-
-    private final ElevatorConfig             m_config      = new ElevatorConfig(motor)
+    private final ElevatorConfig m_config = new ElevatorConfig(motor)
             .withStartingHeight(Inches.of(1))
             .withHardLimits(ElevatorConstants.kBottomHardLimit, ElevatorConstants.kTopHardLimit)
             .withTelemetry("Elevator", SmartMotorControllerConfig.TelemetryVerbosity.HIGH)
             .withMechanismPositionConfig(robotToMechanism)
             .withMass(ElevatorConstants.kMass);
-    private final Elevator                   elevator      = new Elevator(m_config);
-
+    private final yams.mechanisms.positional.Elevator elevator = new yams.mechanisms.positional.Elevator(m_config);
     private final DigitalInput limitSwitch = new DigitalInput(ElevatorConstants.kBottomLimitPort);
 
-    public ElevatorSubsystem() {
+    public Elevator() {
         Trigger atBottomSwitch = new Trigger(limitSwitch::get);
         atBottomSwitch.onTrue(
                 elevator.set(0)
@@ -80,8 +77,7 @@ public class ElevatorSubsystem extends SubsystemBase {
         elevator.simIterate();
     }
 
-    public Command elevCmd(double dutycycle)
-    {
+    public Command elevCmd(double dutycycle) {
         return elevator.set(dutycycle);
     }
 
@@ -97,8 +93,7 @@ public class ElevatorSubsystem extends SubsystemBase {
         return elevator.getHeight() == height;
     }
 
-    public Command sysId()
-    {
+    public Command sysId() {
         return elevator.sysId(Volts.of(12), Volts.of(12).per(Second), Second.of(30));
     }
 }

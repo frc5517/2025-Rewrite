@@ -27,13 +27,13 @@ import static frc.robot.utils.Telemetry.algaeSensorPublisher;
 import static frc.robot.utils.Telemetry.coralSensorPublisher;
 import static yams.mechanisms.SmartMechanism.*;
 
-public class IntakeShooterSubsystem extends SubsystemBase {
+public class IntakeShooter extends SubsystemBase {
 
     private final SparkMax intakeShooterMotor = new SparkMax(IntakeShooterConstants.kMotorID, SparkLowLevel.MotorType.kBrushless);
     private final SmartMotorControllerConfig motorConfig = new SmartMotorControllerConfig(this)
             .withIdleMode(SmartMotorControllerConfig.MotorMode.BRAKE)
             .withMechanismCircumference(Constants.ElevatorConstants.kSprocketCircumference)
-            .withGearing(gearing(gearbox(1/9.0/3.0), sprocket(12, 28)))
+            .withGearing(gearing(gearbox(1 / 9.0 / 3.0), sprocket(12, 28)))
             .withClosedLoopController(
                     IntakeShooterConstants.kKp,
                     IntakeShooterConstants.kKi,
@@ -49,13 +49,13 @@ public class IntakeShooterSubsystem extends SubsystemBase {
     private final Trigger algaeTrigger = new Trigger(() -> !algaeSensor.get());
     // Maple sim stuff
     private final SwerveSubsystem swerve;
-    private final ElevatorSubsystem elevator;
-    private final ArmSubsystem arm;
+    private final Elevator elevator;
+    private final Arm arm;
     private SmartMotorController motor = new SparkWrapper(intakeShooterMotor, DCMotor.getNEO(1), motorConfig);
     private Trigger coralTrigger = new Trigger(coralSensor::get);
     private IntakeSimulation intakeSimulation = null;
 
-    public IntakeShooterSubsystem(SwerveSubsystem drivebase, ElevatorSubsystem elevator, ArmSubsystem arm) {
+    public IntakeShooter(SwerveSubsystem drivebase, Elevator elevator, Arm arm) {
         this.swerve = drivebase;
         this.elevator = elevator;
         this.arm = arm;

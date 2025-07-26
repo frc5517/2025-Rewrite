@@ -32,6 +32,14 @@ public class MapleConstants {
                 Units.inchesToMeters(-17),
                 Units.inchesToMeters(0),
                 Rotation2d.kZero);
+        public static final Transform2d SLOT_OFFSET_LEFT = new Transform2d(
+                Units.inchesToMeters(0),
+                Units.inchesToMeters(24), // Added several times to achieve all 5 poses.
+                Rotation2d.kZero);
+        public static final Transform2d SLOT_OFFSET_RIGHT = new Transform2d(
+                Units.inchesToMeters(0),
+                Units.inchesToMeters(-30), // Added several times to achieve all 5 poses.
+                Rotation2d.kZero);
         public static final Pose2d BARGE_NET_POSE =
                 new Pose2d(
                         7.5,

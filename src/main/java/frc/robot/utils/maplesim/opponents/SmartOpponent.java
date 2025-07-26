@@ -5,10 +5,10 @@ import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 import com.pathplanner.lib.path.Waypoint;
-import com.pathplanner.lib.pathfinding.Pathfinding;
 import com.pathplanner.lib.trajectory.PathPlannerTrajectoryState;
 import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.math.Pair;
+import edu.wpi.first.math.filter.Debouncer;
+import edu.wpi.first.math.filter.LinearFilter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
@@ -17,31 +17,35 @@ import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StringPublisher;
 import edu.wpi.first.networktables.StructPublisher;
-import edu.wpi.first.units.measure.Angle;
-import edu.wpi.first.units.measure.Distance;
-import edu.wpi.first.units.measure.LinearVelocity;
-import edu.wpi.first.units.measure.Mass;
+import edu.wpi.first.units.measure.*;
+import edu.wpi.first.util.function.BooleanConsumer;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.utils.maplesim.MapleSim;
+import frc.robot.utils.maplesim.opponents.pathfinding.MapleADStar;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SelfControlledSwerveDriveSimulation;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
+import org.ironmaple.simulation.drivesims.SwerveModuleSimulation;
 import org.ironmaple.simulation.drivesims.configs.DriveTrainSimulationConfig;
 import org.ironmaple.simulation.gamepieces.GamePieceProjectile;
 import org.ironmaple.simulation.seasonspecific.reefscape2025.ReefscapeAlgaeOnFly;
 import org.ironmaple.simulation.seasonspecific.reefscape2025.ReefscapeCoralOnFly;
 import org.ironmaple.utils.FieldMirroringUtils;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import static edu.wpi.first.units.Units.*;
 import static frc.robot.utils.maplesim.MapleConstants.PoseConstants.*;
@@ -239,8 +243,19 @@ public abstract class SmartOpponent extends SubsystemBase {
         currentState.ifPresent(
                 state -> statePublisher.ifPresent(
                         statePublisher -> statePublisher.set(state.toString())));
+        detectCollision();
     }
 
+    protected boolean isColliding = false;
+    protected Debouncer collisionDebouncer = new  Debouncer(1, Debouncer.DebounceType.kRising);
+    protected double collisionFactor = 0;
+    protected void detectCollision() {
+        simulation.ifPresent(selfControlledSwerveDriveSimulation -> collisionFactor =
+                LinearFilter.movingAverage(50).calculate(Math.abs(
+                (Arrays.stream(selfControlledSwerveDriveSimulation.getDriveTrainSimulation().getModules()).findFirst().get().getDriveMotorSupplyCurrent()).in(Amps)
+                        - Arrays.stream(selfControlledSwerveDriveSimulation.getDriveTrainSimulation().getModules()).findAny().get().getDriveMotorAppliedVoltage().in(Volts))));
+        isColliding = collisionDebouncer.calculate(MathUtil.isNear(0.6, collisionFactor, 0.3));
+    }
 
     /**
      *
@@ -276,9 +291,10 @@ public abstract class SmartOpponent extends SubsystemBase {
      *
      */
     public Command collectCommand() {
-        if (simulation.isPresent()) {
-            return pathfindCommand(getCollectPose(), driveToPoseCollectTolerance).withTimeout(10)
-                    .andThen(Commands.waitSeconds(1))
+        if (simulation.isPresent() && currentState.isPresent()) {
+            return (pathfindCommand(getCollectPose(), driveToPoseCollectTolerance).withTimeout(7)
+                    .andThen(Commands.waitSeconds(0.5)))
+                    .until(() -> isColliding)
                     .andThen(() -> setState(States.SCORE));
         } else {
             return Commands.runOnce(() -> DriverStation.reportWarning("No simulation found", false), this);
@@ -289,11 +305,12 @@ public abstract class SmartOpponent extends SubsystemBase {
      *
      */
     public Command scoreCommand() {
-        if (simulation.isPresent() && scoreTarget.isPresent() && mapleADStar.isPresent()) {
+        if (simulation.isPresent() && scoreTarget.isPresent() && mapleADStar.isPresent() && currentState.isPresent()) {
             return
-                    pathfindCommand(getScorePose(), driveToPoseScoreTolerance).withTimeout(10)
+                    (pathfindCommand(getScorePose(), driveToPoseScoreTolerance).withTimeout(7)
                             .andThen(scoreTarget.get() >= 12 ? algaeFeedShot() : coralFeedShot())
-                            .andThen(Commands.waitSeconds(1))
+                            .andThen(Commands.waitSeconds(0.5)))
+                            .until(() -> isColliding)
                             .andThen(() -> setState(States.COLLECT));
         } else {
             return Commands.runOnce(() -> DriverStation.reportWarning("No simulation found", false), this);
@@ -512,10 +529,19 @@ public abstract class SmartOpponent extends SubsystemBase {
      * @return
      */
     public Pose2d getCollectPose() {
-        int station = ((int) Math.round(Math.random()));
+        int station = ((int) Math.round(Math.random() * 5));
+        boolean willCollide = OpponentManager.getCollectPoses(alliance.get()).stream().anyMatch(Predicate.isEqual(station));
+        if (willCollide) {
+            station = ((int) Math.round(Math.random() * 5));
+        }
+        OpponentManager.setCollectPose(id.get(), alliance.get(), station);
         Pose2d stationPose = switch (station) {
             case 0 -> LEFT_STATION_POSE;
-            case 1 -> RIGHT_STATION_POSE;
+            case 1 -> LEFT_STATION_POSE.plus(SLOT_OFFSET_LEFT);
+            case 2 -> LEFT_STATION_POSE.plus(SLOT_OFFSET_RIGHT);
+            case 3 -> RIGHT_STATION_POSE;
+            case 4 -> RIGHT_STATION_POSE.plus(SLOT_OFFSET_LEFT);
+            case 5 -> RIGHT_STATION_POSE.plus(SLOT_OFFSET_RIGHT);
             default -> Pose2d.kZero;
         };
         return ifShouldFlip(stationPose);
@@ -526,6 +552,11 @@ public abstract class SmartOpponent extends SubsystemBase {
      */
     public Pose2d getScorePose() {
         this.scoreTarget = Optional.of(((int) Math.round(Math.random() * 17)));
+        boolean willCollide = OpponentManager.getTargetPoses(alliance.get()).stream().anyMatch(Predicate.isEqual(scoreTarget.get()));
+        if (willCollide) {
+            this.scoreTarget = Optional.of(((int) Math.round(Math.random() * 17)));
+        }
+        OpponentManager.setTargetPose(id.get(), alliance.get(), scoreTarget.get());
         Pose2d targetPose = switch (scoreTarget.get()) {
             case 0 -> REEF_SOUTH_LEFT_POSE;
             case 1 -> REEF_SOUTH_RIGHT_POSE;

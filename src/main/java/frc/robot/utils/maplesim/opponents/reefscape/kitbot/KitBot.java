@@ -1,11 +1,9 @@
-package frc.robot.utils.maplesim.opponents.kitbot;
+package frc.robot.utils.maplesim.opponents.reefscape.kitbot;
 
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.utils.maplesim.opponents.SmartOpponent;
 
 import java.util.Optional;

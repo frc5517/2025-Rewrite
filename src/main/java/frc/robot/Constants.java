@@ -7,8 +7,10 @@ package frc.robot;
 import com.pathplanner.lib.config.PIDConstants;
 import edu.wpi.first.math.geometry.*;
 import edu.wpi.first.math.util.Units;
-import edu.wpi.first.units.measure.*;
-import yams.gearing.GearBox;
+import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.units.measure.Distance;
+import edu.wpi.first.units.measure.LinearVelocity;
+import edu.wpi.first.units.measure.Mass;
 import yams.gearing.MechanismGearing;
 
 import static edu.wpi.first.units.Units.*;
@@ -48,7 +50,7 @@ public final class Constants {
         public static final Mass kArmMass = Pounds.of(3);
         public static final Distance kArmLength = Inches.of(17);
         public static final Angle kHorizontalZero = Degrees.of(-173);
-        public static final MechanismGearing kReduction = gearing(gearbox(3, 4, 5), sprocket(16/38.0));
+        public static final MechanismGearing kReduction = gearing(gearbox(3, 4, 5), sprocket(16 / 38.0));
 
     }
 
@@ -75,7 +77,7 @@ public final class Constants {
         public static final Distance kTopHardLimit = Meters.of(Units.inchesToMeters(64));
         public static final Distance kBottomHardLimit = Meters.of(Units.inchesToMeters(0));
         public static final Mass kMass = Kilograms.of(Units.lbsToKilograms(10));
-        public static final MechanismGearing kReduction = gearing(gearbox(3, 5), sprocket(22/22.0));
+        public static final MechanismGearing kReduction = gearing(gearbox(3, 5), sprocket(22 / 22.0));
         public static final Distance kSprocketCircumference = Meters.of(Inches.of(0.25).in(Meters) * 22);
     }
 

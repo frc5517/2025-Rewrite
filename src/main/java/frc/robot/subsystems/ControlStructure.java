@@ -11,19 +11,20 @@ import frc.robot.Constants;
 import frc.robot.subsystems.swerve.SwerveSubsystem;
 import frc.robot.utils.PoseSelector;
 
-public class SuperStructure extends SubsystemBase {
+public class ControlStructure extends SubsystemBase {
     private SwerveSubsystem swerve;
     private PoseSelector selector;
-    private ArmSubsystem arm;
-    private ElevatorSubsystem elevator;
-    private IntakeShooterSubsystem intakeShooter;
+    private Arm arm;
+    private Elevator elevator;
+    private IntakeShooter intakeShooter;
     private AddressableLEDSubsystem led;
-    public SuperStructure(SwerveSubsystem swerve,
-                          PoseSelector selector,
-                          ArmSubsystem arm,
-                          ElevatorSubsystem elevator,
-                          IntakeShooterSubsystem intakeShooter,
-                          AddressableLEDSubsystem led) {
+
+    public ControlStructure(SwerveSubsystem swerve,
+                            PoseSelector selector,
+                            Arm arm,
+                            Elevator elevator,
+                            IntakeShooter intakeShooter,
+                            AddressableLEDSubsystem led) {
         this.swerve = swerve;
         this.selector = selector;
         this.arm = arm;
@@ -55,7 +56,7 @@ public class SuperStructure extends SubsystemBase {
 
     private Command setLEDRainbow() {
         return Commands.run(() -> {
-           led.runPatternBoth(led.rainbow, led.rainbow);
+            led.runPatternBoth(led.rainbow, led.rainbow);
         }).finallyDo(() -> led.runPatternBoth(LEDPattern.kOff, LEDPattern.kOff));
     }
 

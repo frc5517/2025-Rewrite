@@ -1,4 +1,4 @@
-package frc.robot.utils.maplesim.opponents;
+package frc.robot.utils.maplesim.opponents.pathfinding;
 
 import com.pathplanner.lib.path.GoalEndState;
 import com.pathplanner.lib.path.PathConstraints;

@@ -20,8 +20,8 @@ import frc.robot.subsystems.swerve.SwerveSubsystem;
 import frc.robot.utils.BindingsSelector;
 import frc.robot.utils.PoseSelector;
 import frc.robot.utils.maplesim.MapleSim;
-import frc.robot.utils.maplesim.opponents.kitbot.KitBot;
-import frc.robot.utils.maplesim.opponents.kitbotpro.KitBotPro;
+import frc.robot.utils.maplesim.opponents.reefscape.kitbot.KitBot;
+import frc.robot.utils.maplesim.opponents.reefscape.kitbotpro.KitBotPro;
 import swervelib.SwerveInputStream;
 
 import java.io.File;
@@ -37,12 +37,12 @@ public class RobotContainer {
     private final SwerveSubsystem swerve = new SwerveSubsystem(new File(Filesystem.getDeployDirectory(),
             "swerve"));
     private final PoseSelector poseSelector = new PoseSelector(swerve);
-    private final ElevatorSubsystem elevator = new ElevatorSubsystem();
-    private final ArmSubsystem arm = new ArmSubsystem();
-    private final IntakeShooterSubsystem intakeShooter = new IntakeShooterSubsystem(
-            swerve, elevator, arm);
+    private final Elevator elevator = new Elevator();
+    private final Arm arm = new Arm();
     private final AddressableLEDSubsystem led = new AddressableLEDSubsystem();
-    private final SuperStructure structure = new SuperStructure(
+    private final IntakeShooter intakeShooter = new IntakeShooter(
+            swerve, elevator, arm);
+    private final ControlStructure structure = new ControlStructure(
             swerve, poseSelector, arm, elevator, intakeShooter, led);
     private SendableChooser<Command> autoChooser;
 
@@ -63,13 +63,13 @@ public class RobotContainer {
     }
 
     private void bindingsSendableInit() {
-        bindingSendable.addOption("Single Xbox", BindingsSelector.BindingType.SINGLE_XBOX);
+        bindingSendable.setDefaultOption("Single Xbox", BindingsSelector.BindingType.SINGLE_XBOX);
         bindingSendable.addOption("Dual Xbox", BindingsSelector.BindingType.DUAL_XBOX);
         bindingSendable.addOption("Single Stick", BindingsSelector.BindingType.SINGLE_STICK);
         bindingSendable.addOption("Dual Stick", BindingsSelector.BindingType.DUAL_STICK);
         bindingSendable.addOption("Single Stick and Xbox", BindingsSelector.BindingType.SINGLE_STICK_XBOX);
         bindingSendable.addOption("Dual Stick and Xbox", BindingsSelector.BindingType.DUAL_STICK_XBOX);
-        bindingSendable.setDefaultOption("Testing", BindingsSelector.BindingType.TESTING);
+        bindingSendable.addOption("Testing", BindingsSelector.BindingType.TESTING);
         SmartDashboard.putData("RobotTelemetry/Control Type", bindingSendable);
     }
 
@@ -101,7 +101,7 @@ public class RobotContainer {
                 () -> driverXbox.getRightX() * -1).copy();
         Command driveXboxCommand = swerve.driveFieldOriented(inputStream);
         Trigger isMode = new Trigger(() -> bindingSendable.getSelected() == BindingsSelector.BindingType.SINGLE_XBOX);
-        isMode.onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(driveXboxCommand)));
+        isMode.and(DriverStation::isEnabled).onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(driveXboxCommand)));
         isMode.and(driverXbox.povUp()).onTrue(Commands.runOnce(poseSelector::selectNorth));
         isMode.and(driverXbox.povUpRight()).onTrue(Commands.runOnce(poseSelector::selectNorthEast));
         isMode.and(driverXbox.povDownRight()).onTrue(Commands.runOnce(poseSelector::selectSouthEast));
@@ -149,9 +149,9 @@ public class RobotContainer {
         // Drive to reef
         isMode.and(driverXbox.a()).whileTrue(structure.autoCollect(driverXbox.rightTrigger()));
         // Drive to station
-        isMode.and(driverXbox.b()).whileTrue(structure.autoScore(SuperStructure.ScoreLevels.SCORE_L2, driverXbox.rightTrigger()));
+        isMode.and(driverXbox.b()).whileTrue(structure.autoScore(ControlStructure.ScoreLevels.SCORE_L2, driverXbox.rightTrigger()));
         // Drive to processor
-        isMode.and(driverXbox.x()).whileTrue(structure.autoScore(SuperStructure.ScoreLevels.SCORE_L3, driverXbox.rightTrigger()));
+        isMode.and(driverXbox.x()).whileTrue(structure.autoScore(ControlStructure.ScoreLevels.SCORE_L3, driverXbox.rightTrigger()));
         // Drive into climb
         isMode.and(driverXbox.y()).whileTrue(
                 swerve.driveToCage(poseSelector, driverXbox.rightTrigger(), 1)
@@ -182,7 +182,7 @@ public class RobotContainer {
 
     private void dualStickXboxBindings() {
         Trigger isMode = new Trigger(() -> bindingSendable.getSelected() == BindingsSelector.BindingType.DUAL_STICK_XBOX);
-        isMode.onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(Commands.none())));
+        isMode.and(DriverStation::isEnabled).onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(Commands.none())));
     }
 
     private void testBindings() {
@@ -193,7 +193,8 @@ public class RobotContainer {
         Command driveXboxCommand = swerve.driveFieldOriented(inputStream);
 
         Trigger isMode = new Trigger(() -> bindingSendable.getSelected() == BindingsSelector.BindingType.TESTING);
-        isMode.onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(driveXboxCommand)));
+
+        isMode.and(DriverStation::isEnabled).onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(driveXboxCommand)));
         isMode.and(driverXbox.start()).onTrue(Commands.runOnce(() -> MapleSim.addCoralAllStations(false)));
         isMode.and(driverXbox.back()).onTrue(Commands.runOnce(MapleSim::clearMatchData));
 
@@ -209,8 +210,8 @@ public class RobotContainer {
 
     public SwerveInputStream getInputStream(DoubleSupplier x, DoubleSupplier y, DoubleSupplier rotation) {
         return SwerveInputStream.of(
-                swerve.getSwerveDrive(),
-                x, y)
+                        swerve.getSwerveDrive(),
+                        x, y)
                 .cubeTranslationControllerAxis(true)
                 .withControllerRotationAxis(rotation)
                 .deadband(Constants.OperatorConstants.DEADBAND)

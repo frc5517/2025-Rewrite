@@ -1,14 +1,13 @@
 package frc.robot.utils.maplesim;
 
 import com.pathplanner.lib.commands.PathfindingCommand;
-import com.pathplanner.lib.pathfinding.LocalADStar;
-import com.pathplanner.lib.pathfinding.Pathfinding;
-import edu.wpi.first.math.geometry.*;
+import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.networktables.*;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.utils.maplesim.opponents.OpponentManager;
 import org.ironmaple.simulation.IntakeSimulation;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.gamepieces.GamePieceProjectile;
@@ -119,7 +118,7 @@ public class MapleSim extends SubsystemBase {
      */
     public static void mapleSimInit() {
         SimulatedArena.getInstance().resetFieldForAuto();
-        Pathfinding.setPathfinder(new LocalADStar());
+        OpponentManager.addInitialPoses();
         new MapleSim();
     }
 
