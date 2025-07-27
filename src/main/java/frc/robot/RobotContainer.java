@@ -16,7 +16,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.subsystems.*;
-import frc.robot.subsystems.swerve.SwerveSubsystem;
+import frc.robot.subsystems.SwerveSubsystem;
 import frc.robot.utils.BindingsSelector;
 import frc.robot.utils.PoseSelector;
 import frc.robot.utils.maplesim.MapleSim;

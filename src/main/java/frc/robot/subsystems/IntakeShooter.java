@@ -2,58 +2,80 @@ package frc.robot.subsystems;
 
 import com.revrobotics.spark.SparkLowLevel;
 import com.revrobotics.spark.SparkMax;
-import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.system.plant.DCMotor;
+import edu.wpi.first.units.measure.AngularAcceleration;
+import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
-import frc.robot.Constants;
-import frc.robot.Constants.IntakeShooterConstants;
-import frc.robot.subsystems.swerve.SwerveSubsystem;
 import frc.robot.utils.Telemetry;
 import org.ironmaple.simulation.IntakeSimulation;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.seasonspecific.reefscape2025.ReefscapeCoralOnFly;
-import yams.motorcontrollers.SmartMotorController;
-import yams.motorcontrollers.SmartMotorControllerConfig;
-import yams.motorcontrollers.local.SparkWrapper;
 
 import static edu.wpi.first.units.Units.*;
 import static frc.robot.utils.Telemetry.algaeSensorPublisher;
 import static frc.robot.utils.Telemetry.coralSensorPublisher;
-import static yams.mechanisms.SmartMechanism.*;
 
 public class IntakeShooter extends SubsystemBase {
+    // This is just a basic single wheel being run at a duty cycle speed no need to use YAMS
+    /**
+     * The setpoint constants for this arm subsystem.
+     */
+    public static final class ControlConstants {
+        public static final double                      kIntakeSpeed =          .3;
+        public static final double                      kShootSpeed =           .65;
+        public static final double                      kIntakeAlgaeSpeed =     .5;
+        public static final double                      kShootAlgaeSpeed =      1;
+        public static final double                      kPullBackInSpeed =      .02;
+    }
+    /**
+     * The hardware constants for this arm subsystem.
+     */
+    public static final class HardwareConstants {
+        public static final int                         kMotorID =              11;
+        public static final int                         kCoralSensorID =        4; // DIO
+        public static final int                         kAlgaeSensorID =        0;
 
-    private final SparkMax intakeShooterMotor = new SparkMax(IntakeShooterConstants.kMotorID, SparkLowLevel.MotorType.kBrushless);
-    private final SmartMotorControllerConfig motorConfig = new SmartMotorControllerConfig(this)
-            .withIdleMode(SmartMotorControllerConfig.MotorMode.BRAKE)
-            .withMechanismCircumference(Constants.ElevatorConstants.kSprocketCircumference)
-            .withGearing(gearing(gearbox(1 / 9.0 / 3.0), sprocket(12, 28)))
-            .withClosedLoopController(
-                    IntakeShooterConstants.kKp,
-                    IntakeShooterConstants.kKi,
-                    IntakeShooterConstants.kKd)
-            .withFeedforward(new SimpleMotorFeedforward(
-                    IntakeShooterConstants.kS, IntakeShooterConstants.kV, IntakeShooterConstants.kA))
-            .withTelemetry("Motor", Telemetry.intakeShooterVerbosity)
-            .withStatorCurrentLimit(Amps.of(30))
-            .withVoltageCompensation(Volts.of(12))
-            .withControlMode(SmartMotorControllerConfig.ControlMode.CLOSED_LOOP);
-    private final DigitalInput coralSensor = new DigitalInput(IntakeShooterConstants.kCoralSensorID);
-    private final DigitalInput algaeSensor = new DigitalInput(IntakeShooterConstants.kAlgaeSensorID);
+        public static final class kProfiledPID {
+            public static final double                  kKp =                   4.0;
+            public static final double                  kKi =                   0.0;
+            public static final double                  kKd =                   0.0;
+            public static final AngularVelocity         kMaxVelocity =          DegreesPerSecond.of(360);
+            public static final AngularAcceleration     kMaxAcceleration =      DegreesPerSecondPerSecond.of(720);
+        }
+        public static final class kFF {
+            public static final double                  kS =                    0.1;
+            public static final double                  kV =                    0.1;
+            public static final double                  kG =                    0.0;
+            public static final double                  kA =                    0.0;
+        }
+    }
+
+    /**
+     * The coral and algae sensors and triggers.
+     */
+    private final DigitalInput coralSensor = new DigitalInput(HardwareConstants.kCoralSensorID);
+    private final DigitalInput algaeSensor = new DigitalInput(HardwareConstants.kAlgaeSensorID);
     private final Trigger algaeTrigger = new Trigger(() -> !algaeSensor.get());
-    // Maple sim stuff
+    private Trigger coralTrigger = new Trigger(coralSensor::get);
+    /**
+     * The motor driving the intake shooter mechanism.
+     */
+    private final SparkMax motor = new SparkMax(HardwareConstants.kMotorID, SparkLowLevel.MotorType.kBrushless);
+    /**
+     * Intake simulation to end effect simulated game pieces.
+     */
+    private IntakeSimulation intakeSimulation = null;
+    /**
+     * Subsystems used to help run the simulation.
+     */
     private final SwerveSubsystem swerve;
     private final Elevator elevator;
     private final Arm arm;
-    private SmartMotorController motor = new SparkWrapper(intakeShooterMotor, DCMotor.getNEO(1), motorConfig);
-    private Trigger coralTrigger = new Trigger(coralSensor::get);
-    private IntakeSimulation intakeSimulation = null;
 
     public IntakeShooter(SwerveSubsystem drivebase, Elevator elevator, Arm arm) {
         this.swerve = drivebase;
@@ -80,68 +102,99 @@ public class IntakeShooter extends SubsystemBase {
         }
     }
 
+    /**
+     * Runs intake.
+     * @return a {@link Command} that runs the intake.
+     */
     public Command intake() {
         return RobotBase.isSimulation() ?
                 Commands.runEnd(() -> intakeSimulation.startIntake(),
                         () -> intakeSimulation.stopIntake()) :
-                Commands.runEnd(() -> motor.setDutyCycle(-IntakeShooterConstants.kIntakeSpeed),
-                        () -> motor.setDutyCycle(0.0));
+                Commands.runEnd(() -> motor.set(-ControlConstants.kIntakeSpeed),
+                        () -> motor.set(0.0));
     }
 
+    /**
+     * Runs intake until the sensor is triggered.
+     * @return a {@link Command} that runs intake until the sensor is triggered.
+     */
     public Command intakeUntilSensed() {
         return intake()
                 .until(coralTrigger);
     }
 
+    /**
+     * Runs intake in reverse for algae.
+     * @return a {@link Command} that runs intake in reverse for algae.
+     */
     public Command intakeAlgae() {
         return
-                Commands.runEnd(() -> motor.setDutyCycle(IntakeShooterConstants.kIntakeAlgaeSpeed),
-                        () -> motor.setDutyCycle(0.0));
+                Commands.runEnd(() -> motor.set(ControlConstants.kIntakeAlgaeSpeed),
+                        () -> motor.set(0.0));
     }
 
+    /**
+     * Runs intake in reverse for algae until the sensor is triggered.
+     * @return a {@link Command} that runs intake in reverse for algae until the sensor is triggered.
+     */
     public Command intakeAlgaeUntilSensed() {
         return
                 intakeAlgae()
                         .until(algaeTrigger);
     }
 
-    public Trigger getCoralTrigger() {
-        return coralTrigger;
-    }
-
-    public Trigger getAlgaeTrigger() {
-        return algaeTrigger;
-    }
-
+    /**
+     * Runs shooter.
+     * @return a {@link Command} that runs the shooter.
+     */
     public Command shoot() {
         return RobotBase.isSimulation() ?
                 simShoot() :
                 Commands.run(() ->
-                        motor.setDutyCycle(IntakeShooterConstants.kShootSpeed));
+                        motor.set(ControlConstants.kShootSpeed));
     }
 
+    /**
+     * Runs shooter until the sensor is no longer triggered.
+     * @return a {@link Command} that r
+     */
     public Command shootUntilGone() {
         return shoot()
                 .until(coralTrigger.negate());
     }
 
+    /**
+     * Runs shooter in reverse for algae.
+     * @return a {@link Command} that runs shooter in reverse for algae.
+     */
     public Command shootAlgae() {
         return
                 Commands.runEnd(
-                        () -> motor.setDutyCycle(-IntakeShooterConstants.kShootAlgaeSpeed),
-                        () -> motor.setDutyCycle(0.0));
+                        () -> motor.set(-ControlConstants.kShootAlgaeSpeed),
+                        () -> motor.set(0.0));
     }
 
+    /**
+     * Runs shooter in reverse for algae until the sensor is no longer triggered.
+     * @return a {@link Command} that runs shooter in reverse for algae until the sensor is no longer triggered.
+     */
     public Command shootAlgaeUntilGone() {
         return
                 shootAlgae()
                         .until(algaeTrigger);
     }
 
+    /**
+     * Adds a game piece to the intake simulation.
+     */
     public void addSimCoralToIntake() {
         intakeSimulation.addGamePieceToIntake();
     }
 
+    /**
+     * Spawns coral as if it was shot from the real robot. Requires a piece to be in the intake.
+     * @return a {@link Command} that spawns coral as if it was shot from the real robot.
+     */
     public Command simShoot() {
         return runOnce(() -> {
             if (intakeSimulation.getGamePiecesAmount() > 0) {
@@ -151,8 +204,8 @@ public class IntakeShooter extends SubsystemBase {
                                 swerve.getMapleDrive().getSimulatedDriveTrainPose().getTranslation(),
                                 // The scoring mechanism is installed at (0.46, 0) (meters) on the robot
                                 new Translation2d(
-                                        (Constants.ArmConstants.kArmLength.in(Meters) / 2 +
-                                                Constants.ElevatorConstants.kCenterToElevator) - Math.abs(arm.getAngle().in(Rotations) * 1.2),
+                                        (Arm.HardwareConstants.kArmLength.in(Meters) / 2 +
+                                                Elevator.HardwareConstants.kCenterToElevator) - Math.abs(arm.getAngle().in(Rotations) * 1.2),
                                         0),
                                 // Obtain robot speed from drive simulation
                                 swerve.getMapleDrive().getDriveTrainSimulatedChassisSpeedsFieldRelative(),
@@ -160,7 +213,7 @@ public class IntakeShooter extends SubsystemBase {
                                 swerve.getMapleDrive().getSimulatedDriveTrainPose().getRotation(),
                                 // The height at which the coral is ejected
                                 Inches.of(elevator.getHeight().in(Inches) +
-                                        Constants.ElevatorConstants.kBottomCarriageToArmInches),
+                                        Elevator.HardwareConstants.kBottomCarriageToArmInches),
                                 // The initial speed of the coral
                                 MetersPerSecond.of(4),
                                 // The coral is ejected at a 35-degree slope
@@ -168,5 +221,21 @@ public class IntakeShooter extends SubsystemBase {
                 intakeSimulation.setGamePiecesCount(0);
             }
         });
+    }
+
+    /**
+     * Gets the {@link Trigger} for the coral sensor.
+     * @return the {@link Trigger} for the coral sensor.
+     */
+    public Trigger getCoralTrigger() {
+        return coralTrigger;
+    }
+
+    /**
+     * Gets the {@link Trigger} for the algae sensor.
+     * @return the {@link Trigger} for the algae sensor.
+     */
+    public Trigger getAlgaeTrigger() {
+        return algaeTrigger;
     }
 }

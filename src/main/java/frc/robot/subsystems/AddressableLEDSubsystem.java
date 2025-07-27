@@ -1,5 +1,6 @@
 package frc.robot.subsystems;
 
+import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.wpilibj.AddressableLED;
 import edu.wpi.first.wpilibj.AddressableLEDBuffer;
 import edu.wpi.first.wpilibj.AddressableLEDBufferView;
@@ -7,22 +8,33 @@ import edu.wpi.first.wpilibj.LEDPattern;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import frc.robot.Constants;
 
+import static edu.wpi.first.units.Units.Meter;
 import static edu.wpi.first.units.Units.MetersPerSecond;
+import static frc.robot.subsystems.AddressableLEDSubsystem.ControlConstants.*;
+import static frc.robot.subsystems.AddressableLEDSubsystem.HardwareConstants.*;
 
 public class AddressableLEDSubsystem extends SubsystemBase {
-    public final LEDPattern rainbow = LEDPattern.rainbow(255, 128);
-    private final AddressableLED led = new AddressableLED(Constants.AddressableConstants.kLedPort);
-    private final AddressableLEDBuffer buffer = new AddressableLEDBuffer(320);
-    private final AddressableLEDBufferView underGlow = buffer.createView(0, 100);
-    private final AddressableLEDBufferView elevatorGlow = buffer.createView(101, 319);
+
+    public static final class ControlConstants {
+        public static final LEDPattern rainbow = LEDPattern.rainbow(255, 128);
+    }
+    public static final class HardwareConstants {
+        public static final int kLedPort = 0; // PWM
+        public static final int kLedLength = 200;
+        public static final Distance kLedSpacing = Meter.of(1.0 / 60);
+        public static final AddressableLEDBuffer buffer = new AddressableLEDBuffer(320);
+        public static final AddressableLEDBufferView underGlow = buffer.createView(0, 100);
+        public static final AddressableLEDBufferView elevatorGlow = buffer.createView(101, 319);
+    }
+
+    private final AddressableLED led = new AddressableLED(HardwareConstants.kLedPort);
     private LEDPattern elevatorPattern = LEDPattern.solid(editColor(Color.kPurple));
     private LEDPattern underPattern = LEDPattern.solid(editColor(Color.kFirstBlue));
 
     public AddressableLEDSubsystem() {
 
-        led.setLength(buffer.getLength());
+        led.setLength(HardwareConstants.buffer.getLength());
 
         led.start();
 
@@ -33,7 +45,7 @@ public class AddressableLEDSubsystem extends SubsystemBase {
     public void periodic() {
         elevatorPattern.applyTo(elevatorGlow);
         underPattern.applyTo(underGlow);
-        led.setData(buffer);
+        led.setData(HardwareConstants.buffer);
 
         //scrollingRainbow(5);
     }
@@ -50,21 +62,17 @@ public class AddressableLEDSubsystem extends SubsystemBase {
     }
 
     public void scrollingRainbow(double scrollMetersPerSecond) {
-        elevatorPattern = rainbow.scrollAtAbsoluteSpeed(MetersPerSecond.of(scrollMetersPerSecond),
-                Constants.AddressableConstants.kLedSpacing);
-        underPattern = rainbow.scrollAtAbsoluteSpeed(MetersPerSecond.of(scrollMetersPerSecond),
-                Constants.AddressableConstants.kLedSpacing);
+        elevatorPattern = rainbow.scrollAtAbsoluteSpeed(MetersPerSecond.of(scrollMetersPerSecond), kLedSpacing);
+        underPattern = rainbow.scrollAtAbsoluteSpeed(MetersPerSecond.of(scrollMetersPerSecond), kLedSpacing);
     }
 
     public Command scrollingRainbowCommand(boolean isUnder, boolean isElevator, double scrollMetersPerSecond) {
         return run(() -> {
             if (isUnder) {
-                underPattern = rainbow.scrollAtAbsoluteSpeed(MetersPerSecond.of(scrollMetersPerSecond),
-                        Constants.AddressableConstants.kLedSpacing);
+                underPattern = rainbow.scrollAtAbsoluteSpeed(MetersPerSecond.of(scrollMetersPerSecond), kLedSpacing);
             }
             if (isElevator) {
-                elevatorPattern = rainbow.scrollAtAbsoluteSpeed(MetersPerSecond.of(scrollMetersPerSecond),
-                        Constants.AddressableConstants.kLedSpacing);
+                elevatorPattern = rainbow.scrollAtAbsoluteSpeed(MetersPerSecond.of(scrollMetersPerSecond), kLedSpacing);
             }
         });
     }

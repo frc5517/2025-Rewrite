@@ -2,7 +2,7 @@
 // Open Source Software; you can modify and/or share it under the terms of
 // the WPILib BSD license file in the root directory of this project.
 
-package frc.robot.subsystems.swerve;
+package frc.robot.subsystems;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.commands.PathPlannerAuto;
@@ -126,7 +126,7 @@ public class SwerveSubsystem extends SubsystemBase {
     }
 
     /**
-     * Setup the photon vision class.
+     * Set up the photon vision class.
      */
     public void setupPhotonVision() {
         vision = new Vision(swerveDrive::getPose, swerveDrive.field);
