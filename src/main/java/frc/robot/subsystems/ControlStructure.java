@@ -8,6 +8,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.utils.PoseSelector;
+import static edu.wpi.first.units.Units.Meters;
 
 public class ControlStructure extends SubsystemBase {
     private SwerveSubsystem swerve;
@@ -17,6 +18,11 @@ public class ControlStructure extends SubsystemBase {
     private IntakeShooter intakeShooter;
     private AddressableLEDSubsystem led;
 
+    /**
+     * Initializer for the Control superstructure.
+     * This is the "brain" that controls the body.
+     * Calls for all subsystems.
+     */
     public ControlStructure(SwerveSubsystem swerve,
                             PoseSelector selector,
                             Arm arm,
@@ -31,6 +37,20 @@ public class ControlStructure extends SubsystemBase {
         this.led = led;
     }
 
+    @Override
+    public void simulationPeriodic() {
+        arm.getArm().getMechanismRoot().setPosition(
+                arm.robotToMechanism.getMechanismX(Arm.SimConstants.kWindowCenter).in(Meters),
+                elevator.getElevator().getHeight().in(Meters)
+        );
+    }
+
+    /**
+     * Runs a command sequence to automatically drive to selected pose and score on the reef.
+     * @param level which level to score the coral.
+     * @param speedBoost whether to increase speed or not.
+     * @return a {@link Command} sequence to automatically drive to selected pose and score on the reef.
+     */
     public Command autoScore(ScoreLevels level, Trigger speedBoost) {
         return swerve.driveToReef(selector, speedBoost, 1)
                 .alongWith(elevator.setHeight(getElevatorSetpoint(level)))
@@ -39,12 +59,22 @@ public class ControlStructure extends SubsystemBase {
                 .alongWith(scoreWhenReady(level));
     }
 
+    /**
+     * Runs a command sequence to automatically collect from selected coral station slot.
+     * @param speedBoost whether to increase speed or not.
+     * @return a {@link Command} sequence to automatically collect from selected coral station slot.
+     */
     public Command autoCollect(Trigger speedBoost) {
         return swerve.driveToStation(selector, speedBoost, 1)
                 .alongWith(setLEDRainbow())
                 .andThen(intakeShooter.intakeUntilSensed());
     }
 
+    /**
+     * Runs a command that only shoots if arm and elevator are at their setpoints.
+     * @param level the reef level being scored.
+     * @return a {@link Command} that only shoots if arm and elevator are at their setpoints.
+     */
     private Command scoreWhenReady(ScoreLevels level) {
         return intakeShooter.shootUntilGone()
                 .onlyIf(swerve.atReef(selector)
@@ -52,12 +82,21 @@ public class ControlStructure extends SubsystemBase {
                         .and(() -> arm.atAngle(getArmSetpoint(level))));
     }
 
+    /**
+     * Runs a command that sets all LEDs to scrolling rainbow.
+     * @return a {@link Command} that sets all LEDs to scrolling rainbow.
+     */
     private Command setLEDRainbow() {
         return Commands.run(() -> {
             led.runPatternBoth(AddressableLEDSubsystem.ControlConstants.rainbow, AddressableLEDSubsystem.ControlConstants.rainbow);
         }).finallyDo(() -> led.runPatternBoth(LEDPattern.kOff, LEDPattern.kOff));
     }
 
+    /**
+     * The arm setpoint for a given reef level.
+     * @param levels which setpoint level.
+     * @return the arm setpoint for a given reef level.
+     */
     private Angle getArmSetpoint(ScoreLevels levels) {
         return switch (levels) {
             case SCORE_L1 -> Arm.ControlConstants.kL1Setpoint;
@@ -67,6 +106,11 @@ public class ControlStructure extends SubsystemBase {
         };
     }
 
+    /**
+     * The elevator setpoint for a given reef level.
+     * @param levels which setpoint level.
+     * @return the elevator setpoint for a given reef level.
+     */
     private Distance getElevatorSetpoint(ScoreLevels levels) {
         return switch (levels) {
             case SCORE_L1 -> Elevator.ControlConstants.kL1Setpoint;
@@ -76,11 +120,13 @@ public class ControlStructure extends SubsystemBase {
         };
     }
 
+    /**
+     * Which level of the reef to score.
+     */
     public enum ScoreLevels {
         SCORE_L1,
         SCORE_L2,
         SCORE_L3,
         SCORE_L4
     }
-
 }

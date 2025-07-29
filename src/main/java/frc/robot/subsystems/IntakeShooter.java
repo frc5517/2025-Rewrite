@@ -77,6 +77,10 @@ public class IntakeShooter extends SubsystemBase {
     private final Elevator elevator;
     private final Arm arm;
 
+    /**
+     * Initializes the intake shooter subsystem.
+     * Calls for some additional subsystems for simulation purposes.
+     */
     public IntakeShooter(SwerveSubsystem drivebase, Elevator elevator, Arm arm) {
         this.swerve = drivebase;
         this.elevator = elevator;
@@ -195,6 +199,7 @@ public class IntakeShooter extends SubsystemBase {
      * Spawns coral as if it was shot from the real robot. Requires a piece to be in the intake.
      * @return a {@link Command} that spawns coral as if it was shot from the real robot.
      */
+    // TODO Make simShoot more accurately shoot the game piece
     public Command simShoot() {
         return runOnce(() -> {
             if (intakeSimulation.getGamePiecesAmount() > 0) {

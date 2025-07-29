@@ -7,14 +7,9 @@ package frc.robot;
 import com.pathplanner.lib.config.PIDConstants;
 import edu.wpi.first.math.geometry.*;
 import edu.wpi.first.math.util.Units;
-import edu.wpi.first.units.measure.Angle;
-import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.LinearVelocity;
-import edu.wpi.first.units.measure.Mass;
-import yams.gearing.MechanismGearing;
 
 import static edu.wpi.first.units.Units.*;
-import static yams.mechanisms.SmartMechanism.*;
 
 /**
  * The Constants class provides a convenient place for teams to hold robot-wide numerical or boolean constants. This

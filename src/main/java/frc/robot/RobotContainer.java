@@ -94,6 +94,10 @@ public class RobotContainer {
         return autoChooser.getSelected();
     }
 
+    //
+    // Control binding methods
+    //
+
     private void singleXboxBindings() {
         final SwerveInputStream inputStream = getInputStream(
                 () -> driverXbox.getLeftY() * -1,
@@ -161,6 +165,7 @@ public class RobotContainer {
     }
 
     private void dualXboxBindings() {
+        // TODO Make all bindings
         Trigger isMode = new Trigger(() -> bindingSendable.getSelected() == BindingsSelector.BindingType.DUAL_XBOX);
         isMode.onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(Commands.none())));
     }
@@ -198,8 +203,8 @@ public class RobotContainer {
         isMode.and(driverXbox.start()).onTrue(Commands.runOnce(() -> MapleSim.addCoralAllStations(false)));
         isMode.and(driverXbox.back()).onTrue(Commands.runOnce(MapleSim::clearMatchData));
 
-        isMode.and(driverXbox.a()).whileTrue(elevator.elevCmd(.5)).onFalse(elevator.elevCmd(0.0));
-        isMode.and(driverXbox.b()).whileTrue(elevator.elevCmd(-.5));
+        isMode.and(driverXbox.a()).whileTrue(elevator.elevCmd(.5).alongWith(arm.armCmd(Arm.ControlConstants.kArmSpeed)));
+        isMode.and(driverXbox.b()).whileTrue(elevator.elevCmd(-.5).alongWith(arm.armCmd(-Arm.ControlConstants.kArmSpeed)));
         isMode.and(driverXbox.x()).whileTrue(elevator.setHeight(Inches.of(12)));
         isMode.and(driverXbox.y()).whileTrue(elevator.setHeight(Inches.of(60)));
         isMode.and(driverXbox.start()).whileTrue(arm.sysId().alongWith(elevator.sysId()));

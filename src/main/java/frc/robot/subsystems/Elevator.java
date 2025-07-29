@@ -9,6 +9,8 @@ import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.*;
 import edu.wpi.first.wpilibj.DigitalInput;
+import edu.wpi.first.wpilibj.util.Color;
+import edu.wpi.first.wpilibj.util.Color8Bit;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
@@ -31,8 +33,7 @@ public class Elevator extends SubsystemBase {
      */
     public static final class ControlConstants {
         public static final double                  kElevatorSpeed =                .4; // Used elsewhere to run armCMD at this DutyCycle
-        public static final Distance                kAutoScoreTolerance =           Inches.of(0.5); // How far from the setpoint is acceptable.
-        public static final Distance                kAtHeightTolerance =            Inches.of(0.5);
+        public static final Distance                kAtHeightTolerance =            Inches.of(0.5); // How far from the angle is acceptable.
 
         public static final Distance                kL1Setpoint =                   Inches.of(10);
         public static final Distance                kL2Setpoint =                   Inches.of(6);
@@ -48,8 +49,10 @@ public class Elevator extends SubsystemBase {
      * The hardware constants for this elevator subsystem.
      */
     public static final class HardwareConstants {
-        public static final int                     kRightMotorID =                 14;
-        public static final int                     kLeftMotorID =                  13;
+        public static final int                     kLeadMotorID =                 14; // Lead motor is typically left for CCW+ with no inversion.
+        public static final boolean                 kLeadMotorInversion =          false;
+        public static final int                     kFollowerMotorID =              13;
+        public static final boolean                 kFollowerMotorInversion =       true;
         public static final int                     kBottomLimitPort =              2;
 
         public static final double                  kBottomCarriageToArmInches =    32;
@@ -67,15 +70,36 @@ public class Elevator extends SubsystemBase {
         public static final Current                 kStatorLimit =                  Amp.of(40);
 
         public static final class kProfiledPID {
-            public static final double              kKp =                           4.0;
+            public static final double              kKp =                           12.0;
             public static final double              kKi =                           0.0;
             public static final double              kKd =                           0.0;
             public static final LinearVelocity      kMaxVelocity =                  MetersPerSecond.of(2);
             public static final LinearAcceleration  kMaxAcceleration =              MetersPerSecondPerSecond.of(3);
         }
-        public static final ElevatorFeedforward     kFF =                           new ElevatorFeedforward(0, 0, 0, 0);
+        public static final ElevatorFeedforward     kFF =                           new ElevatorFeedforward(
+                0,
+                0,
+                0,
+                0);
         public static final ControlMode             kControlMode =                  ControlMode.CLOSED_LOOP;
         public static final TelemetryVerbosity      kVerbosity =                    TelemetryVerbosity.HIGH;
+    }
+    /**
+     * The constants used to simulate the elevator, and it's 3D location.
+     */
+    public static final class SimConstants {
+        public static final Distance                kSimStartingHeight =            Inches.of(0);
+        public static final Distance                kMaxRobotHeight =               Inches.of(70);
+        public static final Distance                kMaxRobotLength =               Inches.of(36);
+        /**
+         * Values are from robot center.
+         * Look at WPI Coordinate System if unsure.
+         */
+        public static final class kMechanismPosition {
+            public static final Distance            kXFrontPositive =               Inches.of(0);
+            public static final Distance            kYLeftPositive =                Inches.of(0.0);
+            public static final Distance            kZUpPositive =                  Inches.of(12);
+        }
     }
     /**
      * A bottoming limit switch to prevent the elevator from continuing to drive past physical limits.
@@ -84,11 +108,11 @@ public class Elevator extends SubsystemBase {
     /**
      * The lead motor driving the elevator mechanism.
      */
-    private final SparkMax elevatorRightMotor = new SparkMax(HardwareConstants.kRightMotorID, SparkLowLevel.MotorType.kBrushless);
+    private final SparkMax elevatorRightMotor = new SparkMax(HardwareConstants.kLeadMotorID, SparkLowLevel.MotorType.kBrushless);
     /**
      * The follower motor driving the elevator mechanism.
      */
-    private final SparkMax elevatorLeftMotor = new SparkMax(HardwareConstants.kLeftMotorID, SparkLowLevel.MotorType.kBrushless);
+    private final SparkMax elevatorLeftMotor = new SparkMax(HardwareConstants.kFollowerMotorID, SparkLowLevel.MotorType.kBrushless);
     /**
      * The config to apply to the motor driving the elevator.
      */
@@ -102,32 +126,36 @@ public class Elevator extends SubsystemBase {
             .withIdleMode(SmartMotorControllerConfig.MotorMode.BRAKE)
             .withTelemetry("ElevatorMotor", HardwareConstants.kVerbosity)
             .withStatorCurrentLimit(HardwareConstants.kStatorLimit)
-            .withMotorInverted(false)
+            .withMotorInverted(HardwareConstants.kLeadMotorInversion)
             .withClosedLoopRampRate(HardwareConstants.kClosedLoopRampRate)
             .withOpenLoopRampRate(HardwareConstants.kOpenLoopRampRate)
             .withFeedforward(HardwareConstants.kFF)
             .withControlMode(HardwareConstants.kControlMode)
-            .withFollowers(Pair.of(elevatorRightMotor, true));
+            .withFollowers(Pair.of(elevatorRightMotor, HardwareConstants.kFollowerMotorInversion)); // Needs changed if follower is removed.
     /**
      * Initialize the wrapper with the driving motor and it's config.
      */
-    private final SmartMotorController motor = new SparkWrapper(elevatorLeftMotor,
-            DCMotor.getNEO(2),
+    private final SmartMotorController motor = new SparkWrapper(
+            elevatorLeftMotor,
+            DCMotor.getNEO(2), // Needs changed if follower is removed.
             motorConfig);
     /**
      * This config is used to place the simulated mechanism on a simulated robot.
      */
     private final MechanismPositionConfig robotToMechanism = new MechanismPositionConfig()
-            .withMaxRobotHeight(Meters.of(1.5))
-            .withMaxRobotLength(Meters.of(0.75))
-            .withRelativePosition(new Translation3d(Meters.of(-0.25), Meters.of(0), Meters.of(0.5)));
+            .withMaxRobotHeight(SimConstants.kMaxRobotHeight)
+            .withMaxRobotLength(SimConstants.kMaxRobotLength)
+            .withRelativePosition(new Translation3d(
+                    SimConstants.kMechanismPosition.kXFrontPositive,
+                    SimConstants.kMechanismPosition.kYLeftPositive,
+                    SimConstants.kMechanismPosition.kZUpPositive));
     /**
      * The config to apply to the elevator mechanism.
      */
     private final ElevatorConfig m_config = new ElevatorConfig(motor)
-            .withStartingHeight(Inches.of(1))
+            .withStartingHeight(SimConstants.kSimStartingHeight)
             .withHardLimits(HardwareConstants.kBottomHardLimit, HardwareConstants.kTopHardLimit)
-            .withTelemetry("Elevator", SmartMotorControllerConfig.TelemetryVerbosity.HIGH)
+            .withTelemetry("Elevator", HardwareConstants.kVerbosity)
             .withMechanismPositionConfig(robotToMechanism)
             .withMass(HardwareConstants.kMass);
     /**
@@ -140,6 +168,11 @@ public class Elevator extends SubsystemBase {
         atBottomSwitch.onTrue(
                 elevator.set(0)
                         .andThen(() -> motor.setPosition(Meters.of(0))));
+        elevator.getMechanismLigament().setColor(new Color8Bit(Color.kPurple));
+    }
+
+    public yams.mechanisms.positional.Elevator getElevator() {
+        return elevator;
     }
 
     /**
@@ -167,18 +200,18 @@ public class Elevator extends SubsystemBase {
     /**
      * Set the DutyCycle of the {@link yams.motorcontrollers.SmartMotorController}.
      *
-     * @param dutycycle [-1,1] to set.
+     * @param dutyCycle [-1,1] to set.
      * @return {@link Command}
      */
-    public Command elevCmd(double dutycycle) {
-        return elevator.set(dutycycle);
+    public Command elevCmd(double dutyCycle) {
+        return elevator.set(dutyCycle);
     }
 
     /**
      * Set the height of the elevator.
      *
      * @param height Height of the elevator to reach.
-     * @return {@link Command} that  sets the elevator height, stops immediately.
+     * @return {@link Command} that sets the elevator height, stops immediately.
      */
     public Command setHeight(Distance height) {
         return elevator.setHeight(height);

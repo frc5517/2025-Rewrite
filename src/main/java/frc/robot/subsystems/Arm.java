@@ -41,6 +41,7 @@ public class Arm extends SubsystemBase {
      */
     public static final class HardwareConstants {
         public static final int                     kArmMotorID =                   12;
+        public static final boolean                 kArmMotorInversion =            false;
         public static final int                     kArmABSID =                     1; // DIO
 
         public static final Angle                   kTopSoftLimit =                 Degrees.of(74);
@@ -49,36 +50,45 @@ public class Arm extends SubsystemBase {
         public static final Angle                   kBottomHardLimit =              Degrees.of(-90);
         public static final Mass                    kArmMass =                      Pounds.of(3);
         public static final Distance                kArmLength =                    Inches.of(17);
-        public static final Angle                   kHorizontalZero =               Degrees.of(-173);
+        public static final Angle                   kHorizontalZero =               Degrees.of(0); // -173
         public static final MechanismGearing        kReduction =                    gearing(gearbox(3, 4, 5), sprocket(16 / 38.0));
         public static final Time                    kClosedLoopRampRate =           Seconds.of(0.25);
         public static final Time                    kOpenLoopRampRate =             Seconds.of(0.25);
         public static final Current                 kStatorLimit =                  Amp.of(40);
 
         public static final class kProfiledPID {
-            public static final double              kKp =                           4.0;
+            public static final double              kKp =                           8.0;
             public static final double              kKi =                           0.0;
             public static final double              kKd =                           0.0;
             public static final AngularVelocity     kMaxVelocity =                  DegreesPerSecond.of(180);
             public static final AngularAcceleration kMaxAcceleration =              DegreesPerSecondPerSecond.of(360);
         }
-        public static final ArmFeedforward                  kFF =                   new ArmFeedforward(0, 0, 0, 0);
-        public static final MotorMode                       kMotorMode =            MotorMode.BRAKE;
-        public static final ControlMode                     kControlMode =          ControlMode.CLOSED_LOOP;
-        public static final TelemetryVerbosity              kVerbosity =            TelemetryVerbosity.HIGH;
+        public static final ArmFeedforward          kFF =                           new ArmFeedforward(
+                0,
+                0,
+                0,
+                0);
+        public static final MotorMode               kMotorMode =                    MotorMode.BRAKE;
+        public static final ControlMode             kControlMode =                  ControlMode.CLOSED_LOOP;
+        public static final TelemetryVerbosity      kVerbosity =                    TelemetryVerbosity.HIGH;
     }
+
+    /**
+     * The constants used to simulate the arm, and it's 3D location.
+     */
     public static final class SimConstants {
-        public static final Angle                           kSimStartingAngle =     Degrees.of(0);
-        public static final Distance                        kMaxRobotHeight =       Meters.of(1.5);
-        public static final Distance                        kMaxRobotLength =       Meters.of(0.75);
+        public static final Angle                   kSimStartingAngle =             Degrees.of(0);
+        public static final Distance                kMaxRobotHeight =               Meters.of(1.5);
+        public static final Distance                kMaxRobotLength =               Meters.of(0.75);
+        public static final Distance                kWindowCenter =                 Meters.of(3);
         /**
-         * Values are from robot center.
+         * Values not from robot center.
          * Look at WPI Coordinate System if unsure.
          */
         public static final class kMechanismPosition {
-            public static final Distance                    kXFrontPositive =       Meters.of(0.25);
-            public static final Distance                    kYLeftPositive =        Meters.of(0.0);
-            public static final Distance                    kZUpPositive =          Meters.of(0.5);
+            public static final Distance            kXFrontPositive =               Inches.of(60);
+            public static final Distance            kYLeftPositive =                Inches.of(0.0);
+            public static final Distance            kZUpPositive =                  Inches.of(20);
         }
     }
     /**
@@ -96,7 +106,7 @@ public class Arm extends SubsystemBase {
             .withIdleMode(HardwareConstants.kMotorMode)
             .withTelemetry("ArmMotor", HardwareConstants.kVerbosity)
             .withStatorCurrentLimit(HardwareConstants.kStatorLimit)
-            .withMotorInverted(false)
+            .withMotorInverted(HardwareConstants.kArmMotorInversion)
             .withClosedLoopRampRate(HardwareConstants.kClosedLoopRampRate)
             .withOpenLoopRampRate(HardwareConstants.kOpenLoopRampRate)
             .withFeedforward(HardwareConstants.kFF)
@@ -108,7 +118,7 @@ public class Arm extends SubsystemBase {
     /**
      * This config is used to place the simulated mechanism on a simulated robot.
      */
-    private final MechanismPositionConfig robotToMechanism = new MechanismPositionConfig()
+    public final MechanismPositionConfig robotToMechanism = new MechanismPositionConfig()
             .withMaxRobotHeight(SimConstants.kMaxRobotHeight)
             .withMaxRobotLength(SimConstants.kMaxRobotLength)
             .withRelativePosition(new Translation3d(
@@ -136,6 +146,10 @@ public class Arm extends SubsystemBase {
      */
     public Arm() {
         //motor.setPosition(Degrees.of(armABS.get()));
+    }
+
+    public yams.mechanisms.positional.Arm getArm() {
+        return arm;
     }
 
     /**
