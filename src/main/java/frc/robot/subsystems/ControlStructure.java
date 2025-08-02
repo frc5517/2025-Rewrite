@@ -2,21 +2,38 @@ package frc.robot.subsystems;
 
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Distance;
-import edu.wpi.first.wpilibj.LEDPattern;
+import edu.wpi.first.wpilibj.RobotBase;
+import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
+import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d;
+import edu.wpi.first.wpilibj.smartdashboard.MechanismRoot2d;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.util.Color;
+import edu.wpi.first.wpilibj.util.Color8Bit;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.robot.Constants;
 import frc.robot.utils.PoseSelector;
+
+import frc.robot.subsystems.AddressableLEDSubsystem.*;
+
+import java.util.function.BooleanSupplier;
+
+import static edu.wpi.first.units.Units.Degrees;
 import static edu.wpi.first.units.Units.Meters;
 
 public class ControlStructure extends SubsystemBase {
-    private SwerveSubsystem swerve;
-    private PoseSelector selector;
-    private Arm arm;
-    private Elevator elevator;
-    private IntakeShooter intakeShooter;
-    private AddressableLEDSubsystem led;
+    private final SwerveSubsystem swerve;
+    private final PoseSelector selector;
+    private final Arm arm;
+    private final Elevator elevator;
+    private final IntakeShooter intakeShooter;
+    private final AddressableLEDSubsystem led;
+    private Mechanism2d mechWindow;
+    private MechanismRoot2d mechRoot;
+    private MechanismLigament2d elevatorMech;
+    private MechanismLigament2d armMech;
 
     /**
      * Initializer for the Control superstructure.
@@ -35,14 +52,37 @@ public class ControlStructure extends SubsystemBase {
         this.elevator = elevator;
         this.intakeShooter = intakeShooter;
         this.led = led;
+        if (RobotBase.isSimulation()) {
+            setupMech();
+        }
     }
 
     @Override
     public void simulationPeriodic() {
-        arm.getArm().getMechanismRoot().setPosition(
-                arm.robotToMechanism.getMechanismX(Arm.SimConstants.kWindowCenter).in(Meters),
-                elevator.getElevator().getHeight().in(Meters)
-        );
+        updateMech();
+    }
+
+    public void setupMech() {
+        mechWindow = new Mechanism2d(
+                Elevator.HardwareConstants.kTopHardLimit.in(Meters) * 2,
+                Elevator.HardwareConstants.kTopHardLimit.in(Meters) * 2);
+        mechRoot = mechWindow.getRoot("Mech Root",
+                Elevator.SimConstants.kMechanismPosition.kXFrontPositive.in(Meters),
+                Elevator.SimConstants.kMechanismPosition.kYLeftPositive.in(Meters));
+        elevatorMech = mechRoot.append(new MechanismLigament2d(
+                "Elevator",
+                Elevator.SimConstants.kSimStartingHeight.in(Meters),
+                90, 6, new Color8Bit(Color.kDarkRed)));
+        armMech = elevatorMech.append(new MechanismLigament2d(
+                "Arm",
+                Arm.HardwareConstants.kArmLength.in(Meters),
+                0, 6, new Color8Bit(Color.kPaleVioletRed)));
+        SmartDashboard.putData("RobotTelemetry/Mech2D", mechWindow);
+    }
+
+    public void updateMech() {
+        elevatorMech.setLength(elevator.getHeight().in(Meters));
+        armMech.setAngle(arm.getAngle().in(Degrees) - 90);
     }
 
     /**
@@ -56,7 +96,8 @@ public class ControlStructure extends SubsystemBase {
                 .alongWith(elevator.setHeight(getElevatorSetpoint(level)))
                 .alongWith(arm.setAngle(getArmSetpoint(level)))
                 .alongWith(setLEDRainbow())
-                .alongWith(scoreWhenReady(level));
+                .until(readyToScore(level))
+                .andThen(score(level));
     }
 
     /**
@@ -66,8 +107,16 @@ public class ControlStructure extends SubsystemBase {
      */
     public Command autoCollect(Trigger speedBoost) {
         return swerve.driveToStation(selector, speedBoost, 1)
+                .alongWith(arm.setAngle(Arm.ControlConstants.kStationSetpoint))
                 .alongWith(setLEDRainbow())
                 .andThen(intakeShooter.intakeUntilSensed());
+    }
+
+    private Command score(ScoreLevels level) {
+        return elevator.setHeight(getElevatorSetpoint(level))
+                .alongWith(arm.setAngle(getArmSetpoint(level)))
+                .alongWith(intakeShooter.shoot()
+                        .onlyWhile(readyToScore(level)));
     }
 
     /**
@@ -75,11 +124,10 @@ public class ControlStructure extends SubsystemBase {
      * @param level the reef level being scored.
      * @return a {@link Command} that only shoots if arm and elevator are at their setpoints.
      */
-    private Command scoreWhenReady(ScoreLevels level) {
-        return intakeShooter.shootUntilGone()
-                .onlyIf(swerve.atReef(selector)
-                        .and(() -> elevator.atHeight(getElevatorSetpoint(level)))
-                        .and(() -> arm.atAngle(getArmSetpoint(level))));
+    private BooleanSupplier readyToScore(ScoreLevels level) {
+        return () -> arm.atAngle(getArmSetpoint(level))
+                && elevator.atHeight(getElevatorSetpoint(level))
+                && !swerve.toPoseIsRunning();
     }
 
     /**
@@ -88,8 +136,8 @@ public class ControlStructure extends SubsystemBase {
      */
     private Command setLEDRainbow() {
         return Commands.run(() -> {
-            led.runPatternBoth(AddressableLEDSubsystem.ControlConstants.rainbow, AddressableLEDSubsystem.ControlConstants.rainbow);
-        }).finallyDo(() -> led.runPatternBoth(LEDPattern.kOff, LEDPattern.kOff));
+            led.runLED(LEDViews.BOTH, LEDModes.RAINBOW);
+        }).finallyDo(() -> led.runLED(LEDViews.BOTH, LEDModes.OFF));
     }
 
     /**
@@ -118,6 +166,12 @@ public class ControlStructure extends SubsystemBase {
             case SCORE_L3 -> Elevator.ControlConstants.kL3Setpoint;
             case SCORE_L4 -> Elevator.ControlConstants.kL4Setpoint;
         };
+    }
+
+    private boolean isDoneScoring(ScoreLevels level) {
+        return arm.atAngle(getArmSetpoint(level))
+                && elevator.atHeight(getElevatorSetpoint(level))
+                && intakeShooter.getCoralTrigger().negate().getAsBoolean();
     }
 
     /**

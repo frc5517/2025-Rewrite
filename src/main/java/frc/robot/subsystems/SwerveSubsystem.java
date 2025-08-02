@@ -25,6 +25,8 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.trajectory.Trajectory;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -32,7 +34,6 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Config;
-import frc.robot.Constants;
 import frc.robot.utils.PoseSelector;
 import frc.robot.utils.Telemetry;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
@@ -52,10 +53,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
-import static edu.wpi.first.units.Units.Meter;
+import static edu.wpi.first.units.Units.*;
+import static frc.robot.Constants.DrivebaseConstants.*;
 
 public class SwerveSubsystem extends SubsystemBase {
 
@@ -88,7 +91,7 @@ public class SwerveSubsystem extends SubsystemBase {
         // Configure the Telemetry before creating the SwerveDrive to avoid unnecessary objects being created.
         SwerveDriveTelemetry.verbosity = Telemetry.swerveVerbosity;
         try {
-            swerveDrive = new SwerveParser(directory).createSwerveDrive(Constants.DrivebaseConstants.MAX_SPEED, startingPose);
+            swerveDrive = new SwerveParser(directory).createSwerveDrive(MAX_SPEED, startingPose);
             // Alternative method if you don't want to supply the conversion factor via JSON files.
             // swerveDrive = new SwerveParser(directory).createSwerveDrive(maximumSpeed, angleConversionFactor, driveConversionFactor);
         } catch (Exception e) {
@@ -120,7 +123,7 @@ public class SwerveSubsystem extends SubsystemBase {
     public SwerveSubsystem(SwerveDriveConfiguration driveCfg, SwerveControllerConfiguration controllerCfg) {
         swerveDrive = new SwerveDrive(driveCfg,
                 controllerCfg,
-                Constants.DrivebaseConstants.MAX_SPEED,
+                MAX_SPEED,
                 new Pose2d(new Translation2d(Meter.of(2), Meter.of(0)),
                         Rotation2d.fromDegrees(0)));
     }
@@ -188,9 +191,9 @@ public class SwerveSubsystem extends SubsystemBase {
                     // Method that will drive the robot given ROBOT RELATIVE ChassisSpeeds. Also, optionally outputs individual module feedforwards
                     new PPHolonomicDriveController(
                             // PPHolonomicController is the built-in path following controller for holonomic drive trains
-                            Constants.DrivebaseConstants.kPPTranslationPID,
+                            kPPTranslationPID,
                             // Translation PID constants
-                            Constants.DrivebaseConstants.kPPRotationPID
+                            kPPRotationPID
                             // Rotation PID constants
                     ),
                     config,
@@ -231,6 +234,8 @@ public class SwerveSubsystem extends SubsystemBase {
         return new PathPlannerAuto(pathName);
     }
 
+
+    public boolean driveToPoseIsRunning = false;
     /**
      * Use PathPlanner Path finding to go to a point on the field.
      *
@@ -267,103 +272,58 @@ public class SwerveSubsystem extends SubsystemBase {
                 new GoalEndState(0.0,
                         pose.get().getRotation())
         );
-
+        driveToPoseIsRunning = true;
         return
                 // Path finds to pose
                 AutoBuilder.pathfindThenFollowPath(
                         path,
                         constraints
-                ).until(() -> poseIsNear(pose.get(), getPose(), Constants.DrivebaseConstants.kTranslationTolerance));
+                ).until(() -> isPoseNear(pose.get(), getPose(), kTranslationTolerance, kRotationTolerance))
+                        .finallyDo(() -> driveToPoseIsRunning = false);
     }
 
     public Command driveToReef(PoseSelector poseSelector, Trigger speedBoost, double boostSpeed) {
         return Commands.defer(() ->
                 driveToPose(
                         poseSelector::flippedReefPose,
-                        speedBoost.getAsBoolean() ? boostSpeed : Constants.DrivebaseConstants.kDriveToReef
+                        speedBoost.getAsBoolean() ? boostSpeed : kDriveToReef
                 ), Set.of(this));
-    }
-
-    public Trigger atReef(PoseSelector poseSelector) {
-        return new Trigger(() ->
-                poseIsNear(
-                        poseSelector.flippedReefPose(),
-                        getPose(),
-                        Constants.DrivebaseConstants.kTranslationTolerance,
-                        Constants.DrivebaseConstants.kRotationTolerance
-                ));
     }
 
     public Command driveToStation(PoseSelector poseSelector, Trigger speedBoost, double boostSpeed) {
         return Commands.defer(() ->
                 driveToPose(
                         poseSelector::flippedStationPose,
-                        speedBoost.getAsBoolean() ? boostSpeed : Constants.DrivebaseConstants.kDriveToStation
+                        speedBoost.getAsBoolean() ? boostSpeed : kDriveToStation
                 ), Set.of(this));
-    }
-
-    public Trigger atStation(PoseSelector poseSelector) {
-        return new Trigger(() ->
-                poseIsNear(
-                        poseSelector.flippedStationPose(),
-                        getPose(),
-                        Constants.DrivebaseConstants.kTranslationTolerance,
-                        Constants.DrivebaseConstants.kRotationTolerance
-                ));
     }
 
     public Command driveToProcessor(PoseSelector poseSelector, Trigger speedBoost, double boostSpeed) {
         return Commands.defer(() ->
                 driveToPose(
                         poseSelector::flippedProcessorPose,
-                        speedBoost.getAsBoolean() ? boostSpeed : Constants.DrivebaseConstants.kDriveToProcessor
+                        speedBoost.getAsBoolean() ? boostSpeed : kDriveToProcessor
                 ), Set.of(this));
-    }
-
-    public Trigger atProcessor(PoseSelector poseSelector) {
-        return new Trigger(() ->
-                poseIsNear(
-                        poseSelector.flippedProcessorPose(),
-                        getPose(),
-                        Constants.DrivebaseConstants.kTranslationTolerance,
-                        Constants.DrivebaseConstants.kRotationTolerance
-                ));
     }
 
     public Command driveToAlgae(PoseSelector poseSelector, Trigger speedBoost, double boostSpeed) {
         return Commands.defer(() ->
                 driveToPose(
                         poseSelector::flippedAlgaePose,
-                        speedBoost.getAsBoolean() ? boostSpeed : Constants.DrivebaseConstants.kDriveToAlgae
+                        speedBoost.getAsBoolean() ? boostSpeed : kDriveToAlgae
                 ), Set.of(this));
-    }
-
-    public Trigger atAlgae(PoseSelector poseSelector) {
-        return new Trigger(() ->
-                poseIsNear(
-                        poseSelector.flippedAlgaePose(),
-                        getPose(),
-                        Constants.DrivebaseConstants.kTranslationTolerance,
-                        Constants.DrivebaseConstants.kRotationTolerance
-                ));
     }
 
     public Command driveToCage(PoseSelector poseSelector, Trigger speedBoost, double boostSpeed) {
         return Commands.defer(() ->
                 driveToPose(
                         poseSelector::flippedCagePose,
-                        speedBoost.getAsBoolean() ? boostSpeed : Constants.DrivebaseConstants.kDriveToCage
+                        speedBoost.getAsBoolean() ? boostSpeed : kDriveToCage
                 ), Set.of(this));
     }
 
-    public Trigger atCage(PoseSelector poseSelector) {
-        return new Trigger(() ->
-                poseIsNear(
-                        poseSelector.flippedCagePose(),
-                        getPose(),
-                        Constants.DrivebaseConstants.kTranslationTolerance,
-                        Constants.DrivebaseConstants.kRotationTolerance
-                ));
+    public boolean toPoseIsRunning() {
+        return driveToPoseIsRunning;
     }
 
     /**
@@ -371,18 +331,18 @@ public class SwerveSubsystem extends SubsystemBase {
      *
      * @param expected        The expected value
      * @param actual          The actual value
-     * @param toleranceMeters The allowed difference between the actual and the expected value in meters
+     * @param tolerance The allowed difference between the actual and the expected value in meters
      * @return Whether the actual value is within the allowed tolerance
      */
-    public boolean poseIsNear(Pose2d expected, Pose2d actual, double toleranceMeters) {
+    public boolean isPoseNear(Pose2d expected, Pose2d actual, Distance tolerance) {
         double expectedX = expected.getX();
         double expectedY = expected.getY();
         double actualX = actual.getX();
         double actualY = actual.getY();
         // Gets the absolute value of expected pose minus actual pose, if the actual pose is exactly right it would return 0.
         // Since it is unreasonable to reach 0 a tolerance is added to reach a reasonable state.
-        return Math.abs(expectedX - actualX) < toleranceMeters
-                && Math.abs(expectedY - actualY) < toleranceMeters;
+        return Math.abs(expectedX - actualX) < tolerance.in(Meters)
+                && Math.abs(expectedY - actualY) < tolerance.in(Meters);
     }
 
     /**
@@ -390,21 +350,22 @@ public class SwerveSubsystem extends SubsystemBase {
      *
      * @param expected        The expected value
      * @param actual          The actual value
-     * @param toleranceMeters The allowed difference between the actual and the expected value in meters
+     * @param tolerance The allowed difference between the actual and the expected value in meters
      * @return Whether the actual value is within the allowed tolerance
      */
-    public boolean poseIsNear(Pose2d expected, Pose2d actual, double toleranceMeters, double toleranceDegrees) {
+    public boolean isPoseNear(Pose2d expected, Pose2d actual, Distance tolerance, Angle delta) {
         double expectedRotation = expected.getRotation().getDegrees();
         double actualRotation = actual.getRotation().getDegrees();
         // Gets the absolute value of expected pose minus actual pose, if the actual pose is exactly right it would return 0.
         // Since it is unreasonable to reach 0, a tolerance is added to reach a reasonable state.
         return
-                poseIsNear(
+                isPoseNear(
                         expected,
                         actual,
-                        toleranceMeters) &&
-                        Math.abs(expectedRotation - actualRotation) < toleranceDegrees;
+                        tolerance) &&
+                        Math.abs(expectedRotation - actualRotation) < delta.in(Degrees);
     }
+
 
     /**
      * Drive with {@link SwerveSetpointGenerator} from 254, implemented by PathPlanner.
@@ -738,7 +699,7 @@ public class SwerveSubsystem extends SubsystemBase {
                 headingX,
                 headingY,
                 getHeading().getRadians(),
-                Constants.DrivebaseConstants.MAX_SPEED);
+                MAX_SPEED);
     }
 
     /**
@@ -757,7 +718,7 @@ public class SwerveSubsystem extends SubsystemBase {
                 scaledInputs.getY(),
                 angle.getRadians(),
                 getHeading().getRadians(),
-                Constants.DrivebaseConstants.MAX_SPEED);
+                MAX_SPEED);
     }
 
     /**

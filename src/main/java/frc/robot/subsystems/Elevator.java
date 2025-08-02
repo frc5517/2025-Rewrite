@@ -70,11 +70,11 @@ public class Elevator extends SubsystemBase {
         public static final Current                 kStatorLimit =                  Amp.of(40);
 
         public static final class kProfiledPID {
-            public static final double              kKp =                           12.0;
+            public static final double              kKp =                           24.0;
             public static final double              kKi =                           0.0;
             public static final double              kKd =                           0.0;
-            public static final LinearVelocity      kMaxVelocity =                  MetersPerSecond.of(2);
-            public static final LinearAcceleration  kMaxAcceleration =              MetersPerSecondPerSecond.of(3);
+            public static final LinearVelocity      kMaxVelocity =                  MetersPerSecond.of(5);
+            public static final LinearAcceleration  kMaxAcceleration =              MetersPerSecondPerSecond.of(10);
         }
         public static final ElevatorFeedforward     kFF =                           new ElevatorFeedforward(
                 0,
@@ -96,7 +96,7 @@ public class Elevator extends SubsystemBase {
          * Look at WPI Coordinate System if unsure.
          */
         public static final class kMechanismPosition {
-            public static final Distance            kXFrontPositive =               Inches.of(0);
+            public static final Distance            kXFrontPositive =               Inches.of(72);
             public static final Distance            kYLeftPositive =                Inches.of(0.0);
             public static final Distance            kZUpPositive =                  Inches.of(12);
         }

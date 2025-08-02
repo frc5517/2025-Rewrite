@@ -15,6 +15,7 @@ import yams.motorcontrollers.SmartMotorController;
 import yams.motorcontrollers.SmartMotorControllerConfig;
 import yams.motorcontrollers.SmartMotorControllerConfig.*;
 import yams.motorcontrollers.local.SparkWrapper;
+import yams.telemetry.SmartMotorControllerTelemetryConfig;
 
 import static edu.wpi.first.units.Units.*;
 import static yams.mechanisms.SmartMechanism.*;
@@ -57,15 +58,15 @@ public class Arm extends SubsystemBase {
         public static final Current                 kStatorLimit =                  Amp.of(40);
 
         public static final class kProfiledPID {
-            public static final double              kKp =                           8.0;
-            public static final double              kKi =                           0.0;
+            public static final double              kKp =                           32.0;
+            public static final double              kKi =                           0.8;
             public static final double              kKd =                           0.0;
-            public static final AngularVelocity     kMaxVelocity =                  DegreesPerSecond.of(180);
-            public static final AngularAcceleration kMaxAcceleration =              DegreesPerSecondPerSecond.of(360);
+            public static final AngularVelocity     kMaxVelocity =                  DegreesPerSecond.of(360);
+            public static final AngularAcceleration kMaxAcceleration =              DegreesPerSecondPerSecond.of(720);
         }
         public static final ArmFeedforward          kFF =                           new ArmFeedforward(
-                0,
-                0,
+                0.02,
+                0.04,
                 0,
                 0);
         public static final MotorMode               kMotorMode =                    MotorMode.BRAKE;

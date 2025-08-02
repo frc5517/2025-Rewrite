@@ -10,7 +10,6 @@ import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.utils.maplesim.opponents.SmartOpponent;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.seasonspecific.reefscape2025.ReefscapeCoralOnFly;
@@ -40,19 +39,15 @@ public class KitBotPro extends SmartOpponent {
         this.robotName = "KitBot Pro";
         setupOpponent(id, alliance);
     }
-
-    @Override
-    public void buildBehaviorChooser(int id, DriverStation.Alliance alliance) {
-        super.buildBehaviorChooser(id, alliance);
-        behaviorChooser.ifPresent(
-                chooser -> chooser.addOption("Joystick Drive", Commands.runOnce(() -> setState(States.JOYSTICK))));
-    }
+    // TODO: Make joystick drive accept bindings easily, Event-loop?
+    // TODO: Properly Comment
+    // TODO: Refactor for Maple-Sim PR, then fork, add, and PR.
 
     /**
      *
      */
     @Override
-    public Command coralFeedShot() {
+    public Command coralFeedShotCommand() {
         // Setup to match the 2025 kitbot
         // Coral Settings
         Distance shootHeight = Meters.of(0.85);

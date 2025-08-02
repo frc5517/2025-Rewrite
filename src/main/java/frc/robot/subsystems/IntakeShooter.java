@@ -202,7 +202,7 @@ public class IntakeShooter extends SubsystemBase {
     // TODO Make simShoot more accurately shoot the game piece
     public Command simShoot() {
         return runOnce(() -> {
-            if (intakeSimulation.getGamePiecesAmount() > 0) {
+//            if (intakeSimulation.getGamePiecesAmount() > 0) {
                 SimulatedArena.getInstance()
                         .addGamePieceProjectile(new ReefscapeCoralOnFly(
                                 // Obtain robot position from drive simulation
@@ -223,8 +223,8 @@ public class IntakeShooter extends SubsystemBase {
                                 MetersPerSecond.of(4),
                                 // The coral is ejected at a 35-degree slope
                                 arm.getAngle()));
-                intakeSimulation.setGamePiecesCount(0);
-            }
+//                intakeSimulation.setGamePiecesCount(0);
+//            }
         });
     }
 

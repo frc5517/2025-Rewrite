@@ -7,6 +7,8 @@ package frc.robot;
 import com.pathplanner.lib.config.PIDConstants;
 import edu.wpi.first.math.geometry.*;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.LinearVelocity;
 
 import static edu.wpi.first.units.Units.*;
@@ -49,8 +51,8 @@ public final class Constants {
         public static final double kDistanceUntilPID = Units.inchesToMeters(1);
         public static final double kRotationGoalBeforePID = 1;
         public static final LinearVelocity kPathfindEndGoalVelocity = MetersPerSecond.of(0);
-        public static final double kTranslationTolerance = .15;
-        public static final double kRotationTolerance = 1; // Degrees
+        public static final Distance kTranslationTolerance = Inches.of(1);
+        public static final Angle kRotationTolerance = Degrees.of(1); // Degrees
 
         // Pathplanner holonomic controller
         public static final PIDConstants kPPTranslationPID = new PIDConstants(5.2, 0.0, 0.0);

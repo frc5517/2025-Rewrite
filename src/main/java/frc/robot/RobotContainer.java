@@ -27,6 +27,7 @@ import swervelib.SwerveInputStream;
 import java.io.File;
 import java.util.function.DoubleSupplier;
 
+import static edu.wpi.first.units.Units.Degrees;
 import static edu.wpi.first.units.Units.Inches;
 
 public class RobotContainer {
@@ -157,11 +158,7 @@ public class RobotContainer {
         // Drive to processor
         isMode.and(driverXbox.x()).whileTrue(structure.autoScore(ControlStructure.ScoreLevels.SCORE_L3, driverXbox.rightTrigger()));
         // Drive into climb
-        isMode.and(driverXbox.y()).whileTrue(
-                swerve.driveToCage(poseSelector, driverXbox.rightTrigger(), 1)
-                        .until(swerve.atCage(poseSelector))
-                        .andThen(swerve.driveBackwards()
-                                .withTimeout(.6)));
+        isMode.and(driverXbox.y()).whileTrue(structure.autoScore(ControlStructure.ScoreLevels.SCORE_L4, driverXbox.rightTrigger()));
     }
 
     private void dualXboxBindings() {
@@ -205,8 +202,8 @@ public class RobotContainer {
 
         isMode.and(driverXbox.a()).whileTrue(elevator.elevCmd(.5).alongWith(arm.armCmd(Arm.ControlConstants.kArmSpeed)));
         isMode.and(driverXbox.b()).whileTrue(elevator.elevCmd(-.5).alongWith(arm.armCmd(-Arm.ControlConstants.kArmSpeed)));
-        isMode.and(driverXbox.x()).whileTrue(elevator.setHeight(Inches.of(12)));
-        isMode.and(driverXbox.y()).whileTrue(elevator.setHeight(Inches.of(60)));
+        isMode.and(driverXbox.x()).whileTrue(arm.setAngle(Degrees.of(0)));
+        isMode.and(driverXbox.y()).whileTrue(arm.setAngle(Degrees.of(35)));
         isMode.and(driverXbox.start()).whileTrue(arm.sysId().alongWith(elevator.sysId()));
 
         isMode.and(driverXbox.leftBumper()).whileTrue(intakeShooter.intake());

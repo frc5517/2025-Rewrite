@@ -18,9 +18,7 @@ import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StringPublisher;
 import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.units.measure.*;
-import edu.wpi.first.util.function.BooleanConsumer;
 import edu.wpi.first.wpilibj.DriverStation;
-import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -34,7 +32,6 @@ import frc.robot.utils.maplesim.opponents.pathfinding.MapleADStar;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SelfControlledSwerveDriveSimulation;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
-import org.ironmaple.simulation.drivesims.SwerveModuleSimulation;
 import org.ironmaple.simulation.drivesims.configs.DriveTrainSimulationConfig;
 import org.ironmaple.simulation.gamepieces.GamePieceProjectile;
 import org.ironmaple.simulation.seasonspecific.reefscape2025.ReefscapeAlgaeOnFly;
@@ -44,7 +41,6 @@ import org.ironmaple.utils.FieldMirroringUtils;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import static edu.wpi.first.units.Units.*;
@@ -71,6 +67,8 @@ public abstract class SmartOpponent extends SubsystemBase {
     protected Optional<StructPublisher<Pose2d>> posePublisher = Optional.empty();
 
     protected Optional<StringPublisher> statePublisher = Optional.empty();
+
+    protected Optional<Trigger> isJoystick = Optional.empty();
 
     protected Optional<SendableChooser<Command>> behaviorChooser = Optional.empty();
 
@@ -116,6 +114,7 @@ public abstract class SmartOpponent extends SubsystemBase {
                 )));
         this.driveController = Optional.of(
                 new PPHolonomicDriveController(new PIDConstants(5.0, 0.0), new PIDConstants(5.0, 0.0)));
+        this.isJoystick =  Optional.of(new Trigger(() -> currentState.get() == States.JOYSTICK));
         if
         (
                 opponentMassKG.isPresent() &&
@@ -308,7 +307,7 @@ public abstract class SmartOpponent extends SubsystemBase {
         if (simulation.isPresent() && scoreTarget.isPresent() && mapleADStar.isPresent() && currentState.isPresent()) {
             return
                     (pathfindCommand(getScorePose(), driveToPoseScoreTolerance).withTimeout(7)
-                            .andThen(scoreTarget.get() >= 12 ? algaeFeedShot() : coralFeedShot())
+                            .andThen(scoreTarget.get() >= 12 ? algaeFeedShotCommand() : coralFeedShotCommand())
                             .andThen(Commands.waitSeconds(0.5)))
                             .until(() -> isColliding)
                             .andThen(() -> setState(States.COLLECT));
@@ -333,6 +332,8 @@ public abstract class SmartOpponent extends SubsystemBase {
      */
     public SmartOpponent withJoystick(CommandXboxController controller) {
         this.joystick = Optional.of(controller);
+        behaviorChooser.ifPresent(
+                chooser -> chooser.addOption("Joystick Drive", Commands.runOnce(() -> setState(States.JOYSTICK))));
         return this;
     }
 
@@ -446,7 +447,7 @@ public abstract class SmartOpponent extends SubsystemBase {
     /**
      *
      */
-    public Command coralFeedShot() {
+    public Command coralFeedShotCommand() {
         // Setup to match the 2025 kitbot
         // Coral Settings
         Distance shootHeight = Meters.of(0.85);
@@ -482,9 +483,47 @@ public abstract class SmartOpponent extends SubsystemBase {
     }
 
     /**
+     *
+     */
+    public void coralFeedShot() {
+        // Setup to match the 2025 kitbot
+        // Coral Settings
+        Distance shootHeight = Meters.of(0.85);
+        LinearVelocity shootSpeed = MetersPerSecond.of(1);
+        Angle shootAngle = Degrees.of(-15);
+        Translation2d shootOnBotPosition = new Translation2d(
+                0.5,
+                0);
+
+        Commands.runOnce(() -> {
+            simulation.ifPresent(
+                    simulation ->
+                    {
+                        SimulatedArena.getInstance()
+                                .addGamePieceProjectile(new ReefscapeCoralOnFly(
+                                        // Obtain robot position from drive simulation
+                                        simulation.getDriveTrainSimulation().getSimulatedDriveTrainPose().getTranslation(),
+                                        // The scoring mechanism is installed at (x, y) (meters) on the robot
+                                        shootOnBotPosition,
+                                        // Obtain robot speed from drive simulation
+                                        simulation.getDriveTrainSimulation().getDriveTrainSimulatedChassisSpeedsFieldRelative(),
+                                        // Obtain robot facing from drive simulation
+                                        simulation.getDriveTrainSimulation().getSimulatedDriveTrainPose().getRotation(),
+                                        // The height at which the coral is ejected
+                                        shootHeight,
+                                        // The initial speed of the coral
+                                        shootSpeed,
+                                        // The coral is ejected at a 35-degree slope
+                                        shootAngle));
+                    });
+        }, this);
+    }
+
+    /**
+     *
      * @return
      */
-    public Command algaeFeedShot() {
+    public Command algaeFeedShotCommand() {
         // Algae settings
         Distance shootHeight = Meters.of(3);
         LinearVelocity shootSpeed = MetersPerSecond.of(.9);
@@ -523,6 +562,48 @@ public abstract class SmartOpponent extends SubsystemBase {
                         }
                     });
         });
+    }
+
+    /**
+     *
+     * @return
+     */
+    public void algaeFeedShot() {
+        // Algae settings
+        Distance shootHeight = Meters.of(3);
+        LinearVelocity shootSpeed = MetersPerSecond.of(.9);
+        Angle shootAngle = Degrees.of(35);
+        Translation2d shootOnBotPosition = new Translation2d(
+                Inches.of(6).in(Meters),
+                0);
+
+        simulation.ifPresent(
+                simulation -> {
+                    GamePieceProjectile algae = new ReefscapeAlgaeOnFly(
+                            // Obtain robot position from drive simulation
+                            simulation.getDriveTrainSimulation().getSimulatedDriveTrainPose().getTranslation(),
+                            // The scoring mechanism is installed at (x, y) (meters) on the robot
+                            shootOnBotPosition,
+                            // Obtain robot speed from drive simulation
+                            simulation.getDriveTrainSimulation().getDriveTrainSimulatedChassisSpeedsRobotRelative(),
+                            // Obtain robot facing from drive simulation
+                            simulation.getDriveTrainSimulation().getSimulatedDriveTrainPose().getRotation(),
+                            // The height at which the coral is ejected
+                            shootHeight,
+                            // The initial speed of the coral
+                            shootSpeed,
+                            // The coral is ejected at a 35-degree slope
+                            shootAngle);
+                    SimulatedArena.getInstance()
+                            .addGamePieceProjectile(algae);
+
+                    if (algae.willHitTarget() | algae.hasHitTarget()) {
+                        alliance.ifPresent(
+                                alliance -> {
+                                    MapleSim.addAlgaeToScore(alliance, 1);
+                                });
+                    }
+                });
     }
 
     /**
