@@ -18,6 +18,7 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.subsystems.*;
 import frc.robot.subsystems.SwerveSubsystem;
 import frc.robot.utils.BindingsSelector;
+import frc.robot.utils.FunDriveModes;
 import frc.robot.utils.PoseSelector;
 import frc.robot.utils.maplesim.MapleSim;
 import frc.robot.utils.maplesim.opponents.reefscape.kitbot.KitBot;
@@ -28,7 +29,6 @@ import java.io.File;
 import java.util.function.DoubleSupplier;
 
 import static edu.wpi.first.units.Units.Degrees;
-import static edu.wpi.first.units.Units.Inches;
 
 public class RobotContainer {
     private final SendableChooser<BindingsSelector.BindingType> bindingSendable = new SendableChooser<>();
@@ -196,7 +196,8 @@ public class RobotContainer {
 
         Trigger isMode = new Trigger(() -> bindingSendable.getSelected() == BindingsSelector.BindingType.TESTING);
 
-        isMode.and(DriverStation::isEnabled).onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(driveXboxCommand)));
+//        isMode.and(DriverStation::isEnabled).onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(driveXboxCommand)));
+        isMode.and(DriverStation::isEnabled).onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(FunDriveModes.carDrive(FunDriveModes.CarType.FWD, swerve, driverXbox, 0.05))));
         isMode.and(driverXbox.start()).onTrue(Commands.runOnce(() -> MapleSim.addCoralAllStations(false)));
         isMode.and(driverXbox.back()).onTrue(Commands.runOnce(MapleSim::clearMatchData));
 
