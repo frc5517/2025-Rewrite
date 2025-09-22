@@ -32,11 +32,6 @@ public class Robot extends TimedRobot {
     }
 
     @Override
-    public void disabledExit() {
-        robotContainer.configureBindings();
-    }
-
-    @Override
     public void autonomousInit() {
         autonomousCommand = robotContainer.getAutonomousCommand();
 

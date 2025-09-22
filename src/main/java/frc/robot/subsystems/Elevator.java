@@ -14,7 +14,7 @@ import edu.wpi.first.wpilibj.util.Color8Bit;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
-import frc.robot.utils.Telemetry;
+import frc.robot.utils.robot.Telemetry;
 import yams.gearing.MechanismGearing;
 import yams.mechanisms.config.ElevatorConfig;
 import yams.mechanisms.config.MechanismPositionConfig;
@@ -24,7 +24,7 @@ import yams.motorcontrollers.SmartMotorControllerConfig.*;
 import yams.motorcontrollers.local.SparkWrapper;
 
 import static edu.wpi.first.units.Units.*;
-import static frc.robot.utils.Telemetry.limitPublisher;
+import static frc.robot.utils.robot.Telemetry.limitPublisher;
 import static yams.mechanisms.SmartMechanism.*;
 
 public class Elevator extends SubsystemBase {

@@ -13,8 +13,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
-import frc.robot.Constants;
-import frc.robot.utils.PoseSelector;
+import frc.robot.utils.robot.PoseSelector;
 
 import frc.robot.subsystems.AddressableLEDSubsystem.*;
 
@@ -30,8 +29,6 @@ public class ControlStructure extends SubsystemBase {
     private final Elevator elevator;
     private final IntakeShooter intakeShooter;
     private final AddressableLEDSubsystem led;
-    private Mechanism2d mechWindow;
-    private MechanismRoot2d mechRoot;
     private MechanismLigament2d elevatorMech;
     private MechanismLigament2d armMech;
 
@@ -62,11 +59,14 @@ public class ControlStructure extends SubsystemBase {
         updateMech();
     }
 
+    /**
+     * Initializes the {@link Mechanism2d} simulation.
+     */
     public void setupMech() {
-        mechWindow = new Mechanism2d(
+        Mechanism2d mechWindow = new Mechanism2d(
                 Elevator.HardwareConstants.kTopHardLimit.in(Meters) * 2,
                 Elevator.HardwareConstants.kTopHardLimit.in(Meters) * 2);
-        mechRoot = mechWindow.getRoot("Mech Root",
+        MechanismRoot2d mechRoot = mechWindow.getRoot("Mech Root",
                 Elevator.SimConstants.kMechanismPosition.kXFrontPositive.in(Meters),
                 Elevator.SimConstants.kMechanismPosition.kYLeftPositive.in(Meters));
         elevatorMech = mechRoot.append(new MechanismLigament2d(
@@ -80,6 +80,9 @@ public class ControlStructure extends SubsystemBase {
         SmartDashboard.putData("RobotTelemetry/Mech2D", mechWindow);
     }
 
+    /**
+     * Updates the {@link Mechanism2d} simulation.
+     */
     public void updateMech() {
         elevatorMech.setLength(elevator.getHeight().in(Meters));
         armMech.setAngle(arm.getAngle().in(Degrees) - 90);
@@ -93,11 +96,7 @@ public class ControlStructure extends SubsystemBase {
      */
     public Command autoScore(ScoreLevels level, Trigger speedBoost) {
         return swerve.driveToReef(selector, speedBoost, 1)
-                .alongWith(elevator.setHeight(getElevatorSetpoint(level)))
-                .alongWith(arm.setAngle(getArmSetpoint(level)))
-                .alongWith(setLEDRainbow())
-                .until(readyToScore(level))
-                .andThen(score(level));
+                .alongWith(score(level));
     }
 
     /**
@@ -107,16 +106,41 @@ public class ControlStructure extends SubsystemBase {
      */
     public Command autoCollect(Trigger speedBoost) {
         return swerve.driveToStation(selector, speedBoost, 1)
-                .alongWith(arm.setAngle(Arm.ControlConstants.kStationSetpoint))
-                .alongWith(setLEDRainbow())
-                .andThen(intakeShooter.intakeUntilSensed());
+                .alongWith(collect());
     }
 
+    /**
+     * Runs a command that moves structures to coral station poses and finishes when a coral is detected.
+     * @return a {@link Command} that moves structures to coral station poses and finishes when a coral is detected.
+     */
+    public Command collect() {
+        return elevator.setHeight(Elevator.ControlConstants.kStationSetpoint)
+                .alongWith(arm.setAngle(Arm.ControlConstants.kStationSetpoint))
+                .alongWith(intakeShooter.intakeUntilSensed());
+    }
+
+    /**
+     * Runs a command that moves structures to {@link ScoreLevels} and shoots when all subsystems are ready.
+     * @param level which level to score the coral.
+     * @return a {@link Command} that moves structures to {@link ScoreLevels} and shoots when all subsystems are ready.
+     */
     private Command score(ScoreLevels level) {
         return elevator.setHeight(getElevatorSetpoint(level))
                 .alongWith(arm.setAngle(getArmSetpoint(level)))
+                .alongWith(intakeShooter.shoot().onlyIf(readyToScore(level)));
+    }
+
+    /**
+     * Runs a command that moves structures to {@link ScoreLevels} and shoots when all systems are ready.
+     * @param level which level to score the coral.
+     * @param readyToScore whether the systems are ready to score.
+     * @return a {@link Command} that moves structures to {@link ScoreLevels} and shoots when all subsystems are ready.
+     */
+    public Command manualScore(ScoreLevels level, Trigger readyToScore) {
+        return elevator.setHeight(getElevatorSetpoint(level))
+                .alongWith(arm.setAngle(getArmSetpoint(level)))
                 .alongWith(intakeShooter.shoot()
-                        .onlyWhile(readyToScore(level)));
+                        .onlyWhile(readyToScore));
     }
 
     /**
@@ -125,9 +149,14 @@ public class ControlStructure extends SubsystemBase {
      * @return a {@link Command} that only shoots if arm and elevator are at their setpoints.
      */
     private BooleanSupplier readyToScore(ScoreLevels level) {
+        // TODO Testing telemetry Data, readyToScore isn't updating
+        SmartDashboard.putBoolean("Arm at Angle", arm.atAngle(getArmSetpoint(level)));
+        SmartDashboard.putBoolean("Elevator at Height", elevator.atHeight(getElevatorSetpoint(level)));
+        SmartDashboard.putBoolean("Swerve not moving", swerve.isMoving(0.01));
+        SmartDashboard.putBoolean("Swerve done running", !swerve.toPoseIsRunning());
         return () -> arm.atAngle(getArmSetpoint(level))
                 && elevator.atHeight(getElevatorSetpoint(level))
-                && !swerve.toPoseIsRunning();
+                && (!swerve.toPoseIsRunning());
     }
 
     /**

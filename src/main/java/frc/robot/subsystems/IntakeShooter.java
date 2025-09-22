@@ -11,14 +11,14 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
-import frc.robot.utils.Telemetry;
+import frc.robot.utils.robot.Telemetry;
 import org.ironmaple.simulation.IntakeSimulation;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.seasonspecific.reefscape2025.ReefscapeCoralOnFly;
 
 import static edu.wpi.first.units.Units.*;
-import static frc.robot.utils.Telemetry.algaeSensorPublisher;
-import static frc.robot.utils.Telemetry.coralSensorPublisher;
+import static frc.robot.utils.robot.Telemetry.algaeSensorPublisher;
+import static frc.robot.utils.robot.Telemetry.coralSensorPublisher;
 
 public class IntakeShooter extends SubsystemBase {
     // This is just a basic single wheel being run at a duty cycle speed no need to use YAMS

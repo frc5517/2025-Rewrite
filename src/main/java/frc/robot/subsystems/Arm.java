@@ -135,7 +135,7 @@ public class Arm extends SubsystemBase {
             .withTelemetry("Arm", HardwareConstants.kVerbosity)
             .withMass(HardwareConstants.kArmMass)
             .withStartingPosition(SimConstants.kSimStartingAngle)
-            .withHorizontalZero(HardwareConstants.kHorizontalZero)
+            //.withHorizontalZero(HardwareConstants.kHorizontalZero)
             .withMechanismPositionConfig(robotToMechanism);
     /**
      * Initialize the final arm mechanism with the {@link ArmConfig}.
