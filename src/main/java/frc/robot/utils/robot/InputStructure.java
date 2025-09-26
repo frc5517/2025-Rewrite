@@ -352,8 +352,8 @@ public class InputStructure {
                 .withPoseCycling(operatorXbox.rightBumper(), true)
                 .withPoseCycling(operatorXbox.leftBumper(), true)
                 /* Manual Mech Control */
-                .withElevatorManual(operatorXbox::getLeftY)
-                .withArmManual(operatorXbox::getRightX)
+                .withElevatorManual(() -> -1 * operatorXbox.getLeftY())
+                .withArmManual(() -> -1 * operatorXbox.getRightX())
                 .withIntakeShooter(operatorXbox.leftTrigger(), true)
                 .withIntakeShooter(operatorXbox.rightTrigger(), false)
                 /* Manual Collect and Score Commands */
@@ -501,7 +501,9 @@ public class InputStructure {
             this.ARM_SPEED = Optional.of(Arm.ControlConstants.kArmSpeed);
 
             // Set default drive command when enabled
-            isMode.and(DriverStation::isEnabled).onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(getDriveCommand())));
+            if (driveCommand.isPresent()) {
+                isMode.and(DriverStation::isEnabled).onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(getDriveCommand())));
+            }
         }
 
         /**
@@ -523,9 +525,6 @@ public class InputStructure {
             /* Subsystem control constants */
             this.ELEVATOR_SPEED = Optional.of(Elevator.ControlConstants.kElevatorSpeed);
             this.ARM_SPEED = Optional.of(Arm.ControlConstants.kArmSpeed);
-
-            // Set default drive command when enabled
-            isMode.and(DriverStation::isEnabled).onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(getDriveCommand())));
         }
 
         /*  Operator Type Controls  */
@@ -784,7 +783,7 @@ public class InputStructure {
          */
         ControlStream withElevatorManual(Supplier<Double> speed) {
             if (isMode.isPresent()) {
-                isMode.get().and(() -> speed.get() > Constants.OperatorConstants.DEADBAND)
+                isMode.get().and(() -> Math.abs(speed.get()) > Constants.OperatorConstants.DEADBAND)
                         .whileTrue(elevator.elevCmd(speed));
             } else {
                 DriverStation.reportWarning("Something not found, Elevator Manual failed.", true);
@@ -862,7 +861,7 @@ public class InputStructure {
          */
         ControlStream withArmManual(Supplier<Double> speed) {
             if (isMode.isPresent()) {
-                isMode.get().and(() -> speed.get() > Constants.OperatorConstants.DEADBAND)
+                isMode.get().and(() -> Math.abs(speed.get()) > Constants.OperatorConstants.DEADBAND)
                         .whileTrue(arm.armCmd(speed));
             } else {
                 DriverStation.reportWarning("Something not found, Arm Manual failed.", true);
