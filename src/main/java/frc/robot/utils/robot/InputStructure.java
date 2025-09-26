@@ -1,5 +1,6 @@
 package frc.robot.utils.robot;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -12,14 +13,11 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.Constants;
 import frc.robot.subsystems.*;
-import frc.robot.utils.FunDriveModes;
-import frc.robot.utils.maplesim.MapleSim;
 import swervelib.SwerveInputStream;
 
 import java.util.Optional;
 import java.util.function.DoubleSupplier;
-
-import static edu.wpi.first.units.Units.Degrees;
+import java.util.function.Supplier;
 
 /**
  * RobotControlBindings - Centralized control bindings management for robot operation.
@@ -164,82 +162,37 @@ public class InputStructure {
      * - Right Stick Button: Toggle field/robot relative drive
      */
     private void singleXboxBindings() {
-        // Local speed constants for this control scheme
-        final double SLOW_TRANSLATION = 0.3;
-        final double SLOW_ROTATION = 0.2;
-        final double NORMAL_TRANSLATION = 0.8;
-        final double NORMAL_ROTATION = 0.6;
-        final double BOOST_TRANSLATION = 1.0;
-        final double BOOST_ROTATION = 0.75;
-
-        // Create input stream for drive control
-        final SwerveInputStream inputStream = getInputStream(
-                () -> driverXbox.getLeftY() * -1,
-                () -> driverXbox.getLeftX() * -1,
-                () -> driverXbox.getRightX() * -1,
-                NORMAL_TRANSLATION,
-                NORMAL_ROTATION).copy();
-
-        // Create drive command
-        Command driveXboxCommand = swerve.driveFieldOriented(inputStream);
-
         // Mode trigger - only active when this binding mode is selected
         Trigger isMode = new Trigger(() -> controlChooser.getSelected() == BindingType.SINGLE_XBOX);
-
-        // Set default drive command when enabled
-        isMode.and(DriverStation::isEnabled).onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(driveXboxCommand)));
-
-        // Reef pose selection using D-Pad
-        isMode.and(driverXbox.povUp()).onTrue(Commands.runOnce(poseSelector::selectNorth));
-        isMode.and(driverXbox.povUpRight()).onTrue(Commands.runOnce(poseSelector::selectNorthEast));
-        isMode.and(driverXbox.povDownRight()).onTrue(Commands.runOnce(poseSelector::selectSouthEast));
-        isMode.and(driverXbox.povDown()).onTrue(Commands.runOnce(poseSelector::selectSouth));
-        isMode.and(driverXbox.povDownLeft()).onTrue(Commands.runOnce(poseSelector::selectSouthWest));
-        isMode.and(driverXbox.povUpLeft()).onTrue(Commands.runOnce(poseSelector::selectNorthWest));
-
-        // Choose left or right pose variant
-        isMode.and(driverXbox.povRight()).onTrue(Commands.runOnce(poseSelector::selectRight));
-        isMode.and(driverXbox.povLeft()).onTrue(Commands.runOnce(poseSelector::selectLeft));
-
-        // Cycle through station slots
-        isMode.and(driverXbox.leftBumper()).onTrue(Commands.runOnce(poseSelector::cycleStationSlotDown));
-        isMode.and(driverXbox.rightBumper()).onTrue(Commands.runOnce(poseSelector::cycleStationSlotUp));
-
-        // Slow speed mode - hold left trigger
-        isMode.and(driverXbox.leftTrigger()).whileTrue(Commands.runEnd(
-                () -> inputStream.scaleTranslation(SLOW_TRANSLATION)
-                        .scaleRotation(SLOW_ROTATION),
-                () -> inputStream.scaleTranslation(NORMAL_TRANSLATION)
-                        .scaleRotation(NORMAL_ROTATION)
-        ));
-
-        // Boost speed mode - hold right trigger
-        isMode.and(driverXbox.rightTrigger()).whileTrue(Commands.runEnd(
-                () -> inputStream.scaleTranslation(BOOST_TRANSLATION)
-                        .scaleRotation(BOOST_ROTATION),
-                () -> inputStream.scaleTranslation(NORMAL_TRANSLATION)
-                        .scaleRotation(NORMAL_ROTATION)
-        ));
-
-        // Toggle inverted controls
-        isMode.and(driverXbox.back()).toggleOnTrue(Commands.runEnd(
-                () -> inputStream.translationHeadingOffset(true),
-                () -> inputStream.translationHeadingOffset(false)
-        ));
-
-        // Toggle field-relative or robot-relative drive
-        isMode.and(driverXbox.rightStick()).toggleOnTrue(Commands.runEnd(
-                () -> inputStream.robotRelative(false)
-                        .allianceRelativeControl(true),
-                () -> inputStream.robotRelative(true)
-                        .allianceRelativeControl(false)
-        ));
-
-        // Auto commands for scoring and collecting
-        isMode.and(driverXbox.a()).whileTrue(structure.autoCollect(driverXbox.rightTrigger()));
-        isMode.and(driverXbox.b()).whileTrue(structure.autoScore(ControlStructure.ScoreLevels.SCORE_L2, driverXbox.rightTrigger()));
-        isMode.and(driverXbox.x()).whileTrue(structure.autoScore(ControlStructure.ScoreLevels.SCORE_L3, driverXbox.rightTrigger()));
-        isMode.and(driverXbox.y()).whileTrue(structure.autoScore(ControlStructure.ScoreLevels.SCORE_L4, driverXbox.rightTrigger()));
+        new ControlStream(
+                () -> -1 * driverXbox.getLeftX(),
+                () -> -1 * driverXbox.getLeftY(),
+                () -> -1 * driverXbox.getRightX(),
+                isMode)
+                /* Reef Pose Selection */
+                .withReefSelection(driverXbox.povUp(), PoseSelector.ReefSide.NORTH)
+                .withReefSelection(driverXbox.povUpRight(), PoseSelector.ReefSide.NORTHEAST)
+                .withReefSelection(driverXbox.povDownRight(), PoseSelector.ReefSide.SOUTHEAST)
+                .withReefSelection(driverXbox.povDown(), PoseSelector.ReefSide.SOUTH)
+                .withReefSelection(driverXbox.povLeft(), PoseSelector.ReefSide.SOUTHWEST)
+                .withReefSelection(driverXbox.povUpLeft(), PoseSelector.ReefSide.NORTHWEST)
+                /* Left and Right Pose Selection */
+                .withLRSelection(driverXbox.povRight(), true)
+                .withLRSelection(driverXbox.povLeft(), false)
+                /* Slot Pose Cycling */
+                .withPoseCycling(driverXbox.rightBumper(), true)
+                .withPoseCycling(driverXbox.leftBumper(), true)
+                /* Drive Speed Changing */
+                .withSlowTranslation(driverXbox.leftTrigger())
+                .withBoostTranslation(driverXbox.rightTrigger())
+                /* Drive Type Toggles */
+                .withHeadingOffset(driverXbox.back())
+                .withToggleCentricity(driverXbox.start())
+                /* Auto Collect and Score Commands */
+                .withAutoCollect(driverXbox.a())
+                .withAutoScore(driverXbox.b(), driverXbox.rightTrigger(), ControlStructure.ScoreLevels.SCORE_L2)
+                .withAutoScore(driverXbox.x(), driverXbox.rightTrigger(), ControlStructure.ScoreLevels.SCORE_L3)
+                .withAutoScore(driverXbox.y(), driverXbox.rightTrigger(), ControlStructure.ScoreLevels.SCORE_L4);
     }
 
     /**
@@ -274,233 +227,32 @@ public class InputStructure {
 
         Trigger isMode = new Trigger(() -> controlChooser.getSelected() == BindingType.DUAL_XBOX);
 
-        // Calls for the regular xbox controls.
+        // Configure driver Xbox controls using helper method
         typicalDriverXboxControls(isMode);
-        // Operator pose selection
-        isMode.and(operatorXbox.povUp()).onTrue(Commands.runOnce(poseSelector::selectNorth));
-        isMode.and(operatorXbox.povUpRight()).onTrue(Commands.runOnce(poseSelector::selectNorthEast));
-        isMode.and(operatorXbox.povDownRight()).onTrue(Commands.runOnce(poseSelector::selectSouthEast));
-        isMode.and(operatorXbox.povDown()).onTrue(Commands.runOnce(poseSelector::selectSouth));
-        isMode.and(operatorXbox.povDownLeft()).onTrue(Commands.runOnce(poseSelector::selectSouthWest));
-        isMode.and(operatorXbox.povUpLeft()).onTrue(Commands.runOnce(poseSelector::selectNorthWest));
-        isMode.and(operatorXbox.povRight()).onTrue(Commands.runOnce(poseSelector::selectRight));
-        isMode.and(operatorXbox.povLeft()).onTrue(Commands.runOnce(poseSelector::selectLeft));
-
-        // Operator station slot cycling
-        isMode.and(operatorXbox.leftBumper()).onTrue(Commands.runOnce(poseSelector::cycleStationSlotDown));
-        isMode.and(operatorXbox.rightBumper()).onTrue(Commands.runOnce(poseSelector::cycleStationSlotUp));
-
-        // Operator manual elevator control with deadband
-        Trigger elevatorManual = new Trigger(() -> Math.abs(operatorXbox.getLeftY()) > 0.1);
-        isMode.and(elevatorManual).whileTrue(
-                elevator.elevCmd(operatorXbox.getLeftY() * -Elevator.ControlConstants.kElevatorSpeed)
-        );
-
-        // Operator manual arm control with deadband
-        Trigger armManual = new Trigger(() -> Math.abs(operatorXbox.getRightX()) > 0.1);
-        isMode.and(armManual).whileTrue(
-                arm.armCmd(operatorXbox.getRightX() * Arm.ControlConstants.kArmSpeed)
-        );
-
-        // Operator position presets
-        isMode.and(operatorXbox.a()).whileTrue(structure.collect());
-
-        // Manual score positions with confirmation trigger
-        isMode.and(operatorXbox.b()).whileTrue(structure.manualScore(ControlStructure.ScoreLevels.SCORE_L2, operatorXbox.leftBumper()));
-        isMode.and(operatorXbox.x()).whileTrue(structure.manualScore(ControlStructure.ScoreLevels.SCORE_L3, operatorXbox.leftBumper()));
-        isMode.and(operatorXbox.y()).whileTrue(structure.manualScore(ControlStructure.ScoreLevels.SCORE_L4, operatorXbox.leftBumper()));
-
-        // Operator intake/shoot controls
-        isMode.and(operatorXbox.leftTrigger()).whileTrue(intakeShooter.intake());
-        isMode.and(operatorXbox.rightTrigger()).whileTrue(intakeShooter.shoot());
+        // Configure operator Xbox controls using helper method
+        typicalOperatorXboxControls(isMode);
     }
 
     /**
-     * Single Logitech Extreme 3D Pro joystick bindings for solo operation.
-     * All controls mapped to one joystick with throttle for speed control.
-     * <p>
-     * Stick Controls:
-     * - X/Y Axes: Translation
-     * - Twist (Z-Axis): Rotation
-     * - Throttle: Speed scaling (forward = slow, back = fast)
-     * <p>
-     * Buttons:
-     * - Button 1 (Trigger): Auto collect
-     * - Button 2 (Thumb): Auto score L2
-     * - Button 3: Auto score L3
-     * - Button 4: Auto score L4
-     * - Button 5: Toggle field/robot relative
-     * - Button 6: Toggle inverted controls
-     * - Button 7: Intake
-     * - Button 8: Shoot
-     * - Button 9: Manual elevator up
-     * - Button 10: Manual elevator down
-     * - Button 11: Cycle station slot down
-     * - Button 12: Cycle station slot up
-     * - POV Hat: Direct pose selection (8-way)
+     * Single Flight Stick, SINGLE PERSON.
      */
     private void singleStickBindings() {
-        // Local speed range constants
-        final double MIN_TRANSLATION = 0.3;
-        final double MAX_TRANSLATION = 1.0;
-        final double MIN_ROTATION = 0.2;
-        final double MAX_ROTATION = 0.75;
-
+        // Mode trigger - only active when this binding mode is selected
         Trigger isMode = new Trigger(() -> controlChooser.getSelected() == BindingType.SINGLE_STICK);
 
-        final SwerveInputStream inputStream = getInputStream(
-                () -> driverRightStick.getY() * -1,
-                () -> driverRightStick.getX() * -1,
-                () -> driverRightStick.getTwist() * -1,
-                0.65, // Start with moderate speed
-                0.4).copy();
-        Command driveStickCommand = swerve.driveFieldOriented(inputStream);
-        isMode.and(DriverStation::isEnabled).onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(driveStickCommand)));
-
-        // Dynamic speed scaling with throttle lever
-        isMode.whileTrue(Commands.run(() -> {
-            double throttle = (1.0 - driverRightStick.getThrottle()) / 2.0; // Normalize -1 to 1 range to 0 to 1
-            inputStream.scaleTranslation(MIN_TRANSLATION + (throttle * (MAX_TRANSLATION - MIN_TRANSLATION)));
-            inputStream.scaleRotation(MIN_ROTATION + (throttle * (MAX_ROTATION - MIN_ROTATION)));
-        }));
-
-        // Auto commands on primary buttons
-        isMode.and(driverRightStick.button(1)).whileTrue(structure.autoCollect(driverRightStick.button(2)));
-        isMode.and(driverRightStick.button(2)).whileTrue(structure.autoScore(ControlStructure.ScoreLevels.SCORE_L2, driverRightStick.button(1)));
-        isMode.and(driverRightStick.button(3)).whileTrue(structure.autoScore(ControlStructure.ScoreLevels.SCORE_L3, driverRightStick.button(1)));
-        isMode.and(driverRightStick.button(4)).whileTrue(structure.autoScore(ControlStructure.ScoreLevels.SCORE_L4, driverRightStick.button(1)));
-
-        // Drive mode settings
-        isMode.and(driverRightStick.button(5)).toggleOnTrue(Commands.runEnd(
-                () -> inputStream.robotRelative(false).allianceRelativeControl(true),
-                () -> inputStream.robotRelative(true).allianceRelativeControl(false)
-        ));
-        isMode.and(driverRightStick.button(6)).toggleOnTrue(Commands.runEnd(
-                () -> inputStream.translationHeadingOffset(true),
-                () -> inputStream.translationHeadingOffset(false)
-        ));
-
-        // Manual mechanism controls
-        isMode.and(driverRightStick.button(7)).whileTrue(intakeShooter.intake());
-        isMode.and(driverRightStick.button(8)).whileTrue(intakeShooter.shoot());
-        isMode.and(driverRightStick.button(9)).whileTrue(elevator.elevCmd(0.5));
-        isMode.and(driverRightStick.button(10)).whileTrue(elevator.elevCmd(-0.5));
-
-        // Pose selection with POV hat (8-way)
-        isMode.and(driverRightStick.povUp()).onTrue(Commands.runOnce(poseSelector::selectNorth));
-        isMode.and(driverRightStick.povUpRight()).onTrue(Commands.runOnce(poseSelector::selectNorthEast));
-        isMode.and(driverRightStick.povRight()).onTrue(Commands.runOnce(poseSelector::selectRight));
-        isMode.and(driverRightStick.povDownRight()).onTrue(Commands.runOnce(poseSelector::selectSouthEast));
-        isMode.and(driverRightStick.povDown()).onTrue(Commands.runOnce(poseSelector::selectSouth));
-        isMode.and(driverRightStick.povDownLeft()).onTrue(Commands.runOnce(poseSelector::selectSouthWest));
-        isMode.and(driverRightStick.povLeft()).onTrue(Commands.runOnce(poseSelector::selectLeft));
-        isMode.and(driverRightStick.povUpLeft()).onTrue(Commands.runOnce(poseSelector::selectNorthWest));
-
-        // Station slot cycling
-        isMode.and(driverRightStick.button(11)).onTrue(Commands.runOnce(poseSelector::cycleStationSlotDown));
-        isMode.and(driverRightStick.button(12)).onTrue(Commands.runOnce(poseSelector::cycleStationSlotUp));
+        // Configure dual stick controls using helper method
+        typicalDualStickControls(isMode);
     }
 
     /**
-     * Dual Logitech Extreme 3D Pro joystick bindings for advanced driver control.
-     * Split controls across two joysticks for maximum precision.
-     * <p>
-     * Left Stick:
-     * - X/Y Axes: Primary translation
-     * - Throttle: Translation speed scaling
-     * - Button 1: Slow mode override
-     * - Button 2: Boost mode override
-     * - Button 7: Intake
-     * - Button 8: Shoot
-     * - POV Hat: Pose selection
-     * - Button 11/12: Station cycling
-     * <p>
-     * Right Stick:
-     * - X Axis: Fine translation adjustment (30% scale)
-     * - Twist: Rotation control
-     * - Throttle: Rotation speed scaling
-     * - Button 1 (Trigger): Auto collect
-     * - Button 2: Auto score L2
-     * - Button 3: Auto score L3
-     * - Button 4: Auto score L4
-     * <p>
-     * Common:
-     * - Either Button 5: Toggle field/robot relative
-     * - Either Button 6: Toggle inverted controls
+     * Two Flight Sticks, One Person.
      */
     private void dualStickBindings() {
-        // Local speed constants
-        final double SLOW_TRANSLATION = 0.3;
-        final double SLOW_ROTATION = 0.2;
-        final double NORMAL_TRANSLATION = 0.8;
-        final double NORMAL_ROTATION = 0.6;
-        final double BOOST_TRANSLATION = 1.0;
-        final double BOOST_ROTATION = 0.75;
-        final double FINE_ADJUSTMENT_SCALE = 0.3;
-
+        // Mode trigger - only active when this binding mode is selected
         Trigger isMode = new Trigger(() -> controlChooser.getSelected() == BindingType.DUAL_STICK);
 
-        // Combine inputs from both sticks for precise control
-        final SwerveInputStream inputStream = getInputStream(
-                () -> driverRightStick.getY() * -1,
-                () -> driverRightStick.getX() * -1 + driverLeftStick.getX() * -FINE_ADJUSTMENT_SCALE,
-                () -> driverLeftStick.getTwist() * -1,
-                NORMAL_TRANSLATION,
-                NORMAL_ROTATION).copy();
-        Command driveStickCommand = swerve.driveFieldOriented(inputStream);
-        isMode.and(DriverStation::isEnabled).onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(driveStickCommand)));
-
-        // Independent throttle controls for translation and rotation
-        isMode.whileTrue(Commands.run(() -> {
-            double leftThrottle = (1.0 - driverRightStick.getThrottle()) / 2.0;
-            double rightThrottle = (1.0 - driverLeftStick.getThrottle()) / 2.0;
-            inputStream.scaleTranslation(0.3 + (leftThrottle * 0.7));
-            inputStream.scaleRotation(0.2 + (rightThrottle * 0.55));
-        }));
-
-        // Speed modifiers on left stick
-        isMode.and(driverRightStick.button(1)).whileTrue(Commands.runEnd(
-                () -> inputStream.scaleTranslation(SLOW_TRANSLATION).scaleRotation(SLOW_ROTATION),
-                () -> inputStream.scaleTranslation(NORMAL_TRANSLATION).scaleRotation(NORMAL_ROTATION)
-        ));
-        isMode.and(driverRightStick.button(2)).whileTrue(Commands.runEnd(
-                () -> inputStream.scaleTranslation(BOOST_TRANSLATION).scaleRotation(BOOST_ROTATION),
-                () -> inputStream.scaleTranslation(NORMAL_TRANSLATION).scaleRotation(NORMAL_ROTATION)
-        ));
-
-        // Manual controls on left stick
-        isMode.and(driverRightStick.button(7)).whileTrue(intakeShooter.intake());
-        isMode.and(driverRightStick.button(8)).whileTrue(intakeShooter.shoot());
-
-        // Auto commands on right stick
-        isMode.and(driverLeftStick.button(1)).whileTrue(structure.autoCollect(driverLeftStick.button(2)));
-        isMode.and(driverLeftStick.button(2)).whileTrue(structure.autoScore(ControlStructure.ScoreLevels.SCORE_L2, driverLeftStick.button(1)));
-        isMode.and(driverLeftStick.button(3)).whileTrue(structure.autoScore(ControlStructure.ScoreLevels.SCORE_L3, driverLeftStick.button(1)));
-        isMode.and(driverLeftStick.button(4)).whileTrue(structure.autoScore(ControlStructure.ScoreLevels.SCORE_L4, driverLeftStick.button(1)));
-
-        // Settings available on either stick
-        isMode.and(driverRightStick.button(5).or(driverLeftStick.button(5))).toggleOnTrue(Commands.runEnd(
-                () -> inputStream.robotRelative(false).allianceRelativeControl(true),
-                () -> inputStream.robotRelative(true).allianceRelativeControl(false)
-        ));
-        isMode.and(driverRightStick.button(6).or(driverLeftStick.button(6))).toggleOnTrue(Commands.runEnd(
-                () -> inputStream.translationHeadingOffset(true),
-                () -> inputStream.translationHeadingOffset(false)
-        ));
-
-        // Pose selection on left stick POV
-        isMode.and(driverRightStick.povUp()).onTrue(Commands.runOnce(poseSelector::selectNorth));
-        isMode.and(driverRightStick.povUpRight()).onTrue(Commands.runOnce(poseSelector::selectNorthEast));
-        isMode.and(driverRightStick.povRight()).onTrue(Commands.runOnce(poseSelector::selectRight));
-        isMode.and(driverRightStick.povDownRight()).onTrue(Commands.runOnce(poseSelector::selectSouthEast));
-        isMode.and(driverRightStick.povDown()).onTrue(Commands.runOnce(poseSelector::selectSouth));
-        isMode.and(driverRightStick.povDownLeft()).onTrue(Commands.runOnce(poseSelector::selectSouthWest));
-        isMode.and(driverRightStick.povLeft()).onTrue(Commands.runOnce(poseSelector::selectLeft));
-        isMode.and(driverRightStick.povUpLeft()).onTrue(Commands.runOnce(poseSelector::selectNorthWest));
-
-        // Station slots on left stick
-        isMode.and(driverRightStick.button(11)).onTrue(Commands.runOnce(poseSelector::cycleStationSlotDown));
-        isMode.and(driverRightStick.button(12)).onTrue(Commands.runOnce(poseSelector::cycleStationSlotUp));
+        // Configure dual stick controls using helper method
+        typicalDualStickControls(isMode);
     }
 
     /**
@@ -511,74 +263,16 @@ public class InputStructure {
      * - X/Y Axes: Translation
      * - Twist: Rotation
      * - Throttle: Speed scaling
-     * - Button 1 (Trigger): Boost mode
-     * - Button 2: Slow mode
-     * - Button 3: Auto collect
-     * - Button 4: Auto score L2
-     * - Button 5: Auto score L3
-     * - Button 6: Auto score L4
-     * - Button 7: Toggle field/robot relative
-     * - Button 8: Toggle inverted controls
      * <p>
      * Operator Xbox:
      * - Same as dual Xbox operator controls
      */
     private void singleStickXboxBindings() {
-        // Local speed constants
-        final double SLOW_TRANSLATION = 0.3;
-        final double SLOW_ROTATION = 0.2;
-        final double NORMAL_TRANSLATION = 0.8;
-        final double NORMAL_ROTATION = 0.6;
-        final double BOOST_TRANSLATION = 1.0;
-        final double BOOST_ROTATION = 0.75;
-
+        // Mode trigger - only active when this binding mode is selected
         Trigger isMode = new Trigger(() -> controlChooser.getSelected() == BindingType.SINGLE_STICK_XBOX);
 
-        // Driver joystick controls
-        final SwerveInputStream inputStream = getInputStream(
-                () -> driverRightStick.getY() * -1,
-                () -> driverRightStick.getX() * -1,
-                () -> driverRightStick.getTwist() * -1,
-                NORMAL_TRANSLATION,
-                NORMAL_ROTATION).copy();
-        Command driveStickCommand = swerve.driveFieldOriented(inputStream);
-        isMode.and(DriverStation::isEnabled).onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(driveStickCommand)));
-
-        // Throttle-based speed scaling
-        isMode.whileTrue(Commands.run(() -> {
-            double throttle = (1.0 - driverRightStick.getThrottle()) / 2.0;
-            inputStream.scaleTranslation(0.3 + (throttle * 0.7));
-            inputStream.scaleRotation(0.2 + (throttle * 0.55));
-        }));
-
-        // Driver speed overrides
-        isMode.and(driverRightStick.button(1)).whileTrue(Commands.runEnd(
-                () -> inputStream.scaleTranslation(BOOST_TRANSLATION).scaleRotation(BOOST_ROTATION),
-                () -> inputStream.scaleTranslation(NORMAL_TRANSLATION).scaleRotation(NORMAL_ROTATION)
-        ));
-        isMode.and(driverRightStick.button(2)).whileTrue(Commands.runEnd(
-                () -> inputStream.scaleTranslation(SLOW_TRANSLATION).scaleRotation(SLOW_ROTATION),
-                () -> inputStream.scaleTranslation(NORMAL_TRANSLATION).scaleRotation(NORMAL_ROTATION)
-        ));
-
-        // Driver auto commands
-        isMode.and(driverRightStick.button(3)).whileTrue(structure.autoCollect(driverRightStick.button(1)));
-        isMode.and(driverRightStick.button(4)).whileTrue(structure.autoScore(ControlStructure.ScoreLevels.SCORE_L2, driverRightStick.button(1)));
-        isMode.and(driverRightStick.button(5)).whileTrue(structure.autoScore(ControlStructure.ScoreLevels.SCORE_L3, driverRightStick.button(1)));
-        isMode.and(driverRightStick.button(6)).whileTrue(structure.autoScore(ControlStructure.ScoreLevels.SCORE_L4, driverRightStick.button(1)));
-
-        // Driver settings
-        isMode.and(driverRightStick.button(7)).toggleOnTrue(Commands.runEnd(
-                () -> inputStream.robotRelative(false).allianceRelativeControl(true),
-                () -> inputStream.robotRelative(true).allianceRelativeControl(false)
-        ));
-        isMode.and(driverRightStick.button(8)).toggleOnTrue(Commands.runEnd(
-                () -> inputStream.translationHeadingOffset(true),
-                () -> inputStream.translationHeadingOffset(false)
-        ));
-
-        // Configure operator Xbox controls using helper method
-        typicalOperatorXboxControls(isMode);
+        // Configure dual stick controls using helper method
+        typicalSingleStickControls(isMode);
     }
 
     /**
@@ -590,60 +284,10 @@ public class InputStructure {
      * convenience for mechanism operation.
      */
     private void dualStickXboxBindings() {
-        // Local speed constants
-        final double SLOW_TRANSLATION = 0.3;
-        final double SLOW_ROTATION = 0.2;
-        final double NORMAL_TRANSLATION = 0.8;
-        final double NORMAL_ROTATION = 0.6;
-        final double BOOST_TRANSLATION = 1.0;
-        final double BOOST_ROTATION = 0.75;
-        final double FINE_ADJUSTMENT_SCALE = 0.3;
-
+        // Mode trigger - only active when this binding mode is selected
         Trigger isMode = new Trigger(() -> controlChooser.getSelected() == BindingType.DUAL_STICK_XBOX);
-
-        // Dual stick drive controls
-        final SwerveInputStream inputStream = getInputStream(
-                () -> driverRightStick.getY() * -1,
-                () -> driverRightStick.getX() * -1 + driverLeftStick.getX() * -FINE_ADJUSTMENT_SCALE,
-                () -> driverLeftStick.getTwist() * -1,
-                NORMAL_TRANSLATION,
-                NORMAL_ROTATION).copy();
-        Command driveStickCommand = swerve.driveFieldOriented(inputStream);
-        isMode.and(DriverStation::isEnabled).onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(driveStickCommand)));
-
-        // Independent throttle controls
-        isMode.whileTrue(Commands.run(() -> {
-            double leftThrottle = (1.0 - driverRightStick.getThrottle()) / 2.0;
-            double rightThrottle = (1.0 - driverLeftStick.getThrottle()) / 2.0;
-            inputStream.scaleTranslation(0.3 + (leftThrottle * 0.7));
-            inputStream.scaleRotation(0.2 + (rightThrottle * 0.55));
-        }));
-
-        // Speed modifiers on left stick
-        isMode.and(driverRightStick.button(1)).whileTrue(Commands.runEnd(
-                () -> inputStream.scaleTranslation(SLOW_TRANSLATION).scaleRotation(SLOW_ROTATION),
-                () -> inputStream.scaleTranslation(NORMAL_TRANSLATION).scaleRotation(NORMAL_ROTATION)
-        ));
-        isMode.and(driverRightStick.button(2)).whileTrue(Commands.runEnd(
-                () -> inputStream.scaleTranslation(BOOST_TRANSLATION).scaleRotation(BOOST_ROTATION),
-                () -> inputStream.scaleTranslation(NORMAL_TRANSLATION).scaleRotation(NORMAL_ROTATION)
-        ));
-
-        // Auto commands on right stick
-        isMode.and(driverLeftStick.button(1)).whileTrue(structure.autoCollect(driverLeftStick.button(2)));
-        isMode.and(driverLeftStick.button(2)).whileTrue(structure.autoScore(ControlStructure.ScoreLevels.SCORE_L2, driverLeftStick.button(1)));
-        isMode.and(driverLeftStick.button(3)).whileTrue(structure.autoScore(ControlStructure.ScoreLevels.SCORE_L3, driverLeftStick.button(1)));
-        isMode.and(driverLeftStick.button(4)).whileTrue(structure.autoScore(ControlStructure.ScoreLevels.SCORE_L4, driverLeftStick.button(1)));
-
-        // Settings on either stick
-        isMode.and(driverRightStick.button(5).or(driverLeftStick.button(5))).toggleOnTrue(Commands.runEnd(
-                () -> inputStream.robotRelative(false).allianceRelativeControl(true),
-                () -> inputStream.robotRelative(true).allianceRelativeControl(false)
-        ));
-        isMode.and(driverRightStick.button(6).or(driverLeftStick.button(6))).toggleOnTrue(Commands.runEnd(
-                () -> inputStream.translationHeadingOffset(true),
-                () -> inputStream.translationHeadingOffset(false)
-        ));
+        // Configure dual stick controls using helper method
+        typicalDualStickControls(isMode);
 
         // Configure operator Xbox controls using helper method
         typicalOperatorXboxControls(isMode);
@@ -656,43 +300,9 @@ public class InputStructure {
      * WARNING: Test mode bypasses safety interlocks. Use with caution.
      */
     private void testBindings() {
-        final SwerveInputStream inputStream = getInputStream(
-                () -> driverXbox.getLeftY() * -1,
-                () -> driverXbox.getLeftX() * -1,
-                () -> driverXbox.getRightX() * -1,
-                0.8,
-                0.6).copy();
-
+        // Mode trigger - only active when this binding mode is selected
         Trigger isMode = new Trigger(() -> controlChooser.getSelected() == BindingType.TESTING);
-
-        // Enable fun drive mode for testing (car simulation)
-        isMode.and(DriverStation::isEnabled).onTrue(Commands.runOnce(() ->
-                swerve.setDefaultCommand(FunDriveModes.carDrive(FunDriveModes.CarType.FWD, swerve, driverXbox, 0.05))));
-
-        // Simulation controls
-        isMode.and(driverXbox.start()).onTrue(Commands.runOnce(() -> MapleSim.addCoralAllStations(false)));
-        isMode.and(driverXbox.back()).onTrue(Commands.runOnce(MapleSim::clearMatchData));
-
-        // Direct mechanism testing with proper constants
-        isMode.and(driverXbox.a()).whileTrue(
-                elevator.elevCmd(Elevator.ControlConstants.kElevatorSpeed)
-                        .alongWith(arm.armCmd(Arm.ControlConstants.kArmSpeed))
-        );
-        isMode.and(driverXbox.b()).whileTrue(
-                elevator.elevCmd(-Elevator.ControlConstants.kElevatorSpeed)
-                        .alongWith(arm.armCmd(-Arm.ControlConstants.kArmSpeed))
-        );
-
-        // Arm position testing
-        isMode.and(driverXbox.x()).whileTrue(arm.setAngle(Degrees.of(0)));
-        isMode.and(driverXbox.y()).whileTrue(arm.setAngle(Degrees.of(35)));
-
-        // System identification
-        isMode.and(driverXbox.start()).whileTrue(arm.sysId().alongWith(elevator.sysId()));
-
-        // Intake/shooter testing
-        isMode.and(driverXbox.leftBumper()).whileTrue(intakeShooter.intake());
-        isMode.and(driverXbox.rightBumper()).whileTrue(intakeShooter.shoot());
+        new ControlStream(isMode);
     }
 
     /**
@@ -702,19 +312,22 @@ public class InputStructure {
      * @param isMode The mode trigger to gate these bindings
      */
     private void typicalDriverXboxControls(Trigger isMode) {
-        // Local speed constants
-        ControlStream driverStream = new ControlStream(isMode)
+        new ControlStream(
+                () -> -1 * driverXbox.getLeftX(),
+                () -> -1 * driverXbox.getLeftY(),
+                () -> -1 * driverXbox.getRightX(),
+                isMode)
+                /* Drive Speed Changing */
                 .withSlowTranslation(driverXbox.leftTrigger())
                 .withBoostTranslation(driverXbox.rightTrigger())
+                /* Drive Type Toggles */
                 .withHeadingOffset(driverXbox.back())
                 .withToggleCentricity(driverXbox.start())
+                /* Auto Collect and Score Commands */
                 .withAutoCollect(driverXbox.a())
                 .withAutoScore(driverXbox.b(), driverXbox.rightTrigger(), ControlStructure.ScoreLevels.SCORE_L2)
                 .withAutoScore(driverXbox.x(), driverXbox.rightTrigger(), ControlStructure.ScoreLevels.SCORE_L3)
                 .withAutoScore(driverXbox.y(), driverXbox.rightTrigger(), ControlStructure.ScoreLevels.SCORE_L4);
-        // if stream isn't found it should return null to make it error when it tries to make a null command.
-        Command driveXboxCommand = swerve.driveFieldOriented(driverStream.inputStream.orElse(null));
-        isMode.and(DriverStation::isEnabled).onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(driveXboxCommand)));
     }
 
     /**
@@ -724,50 +337,62 @@ public class InputStructure {
      * @param isMode The mode trigger to gate these bindings
      */
     private void typicalOperatorXboxControls(Trigger isMode) {
-        // Pose selection
-        isMode.and(operatorXbox.povUp()).onTrue(Commands.runOnce(poseSelector::selectNorth));
-        isMode.and(operatorXbox.povUpRight()).onTrue(Commands.runOnce(poseSelector::selectNorthEast));
-        isMode.and(operatorXbox.povDownRight()).onTrue(Commands.runOnce(poseSelector::selectSouthEast));
-        isMode.and(operatorXbox.povDown()).onTrue(Commands.runOnce(poseSelector::selectSouth));
-        isMode.and(operatorXbox.povDownLeft()).onTrue(Commands.runOnce(poseSelector::selectSouthWest));
-        isMode.and(operatorXbox.povUpLeft()).onTrue(Commands.runOnce(poseSelector::selectNorthWest));
-        isMode.and(operatorXbox.povRight()).onTrue(Commands.runOnce(poseSelector::selectRight));
-        isMode.and(operatorXbox.povLeft()).onTrue(Commands.runOnce(poseSelector::selectLeft));
+        new ControlStream(isMode)
+                /* Reef Pose Selection */
+                .withReefSelection(operatorXbox.povUp(), PoseSelector.ReefSide.NORTH)
+                .withReefSelection(operatorXbox.povUpRight(), PoseSelector.ReefSide.NORTHEAST)
+                .withReefSelection(operatorXbox.povDownRight(), PoseSelector.ReefSide.SOUTHEAST)
+                .withReefSelection(operatorXbox.povDown(), PoseSelector.ReefSide.SOUTH)
+                .withReefSelection(operatorXbox.povLeft(), PoseSelector.ReefSide.SOUTHWEST)
+                .withReefSelection(operatorXbox.povUpLeft(), PoseSelector.ReefSide.NORTHWEST)
+                /* Left and Right Pose Selection */
+                .withLRSelection(operatorXbox.povRight(), true)
+                .withLRSelection(operatorXbox.povLeft(), false)
+                /* Slot Pose Cycling */
+                .withPoseCycling(operatorXbox.rightBumper(), true)
+                .withPoseCycling(operatorXbox.leftBumper(), true)
+                /* Manual Mech Control */
+                .withElevatorManual(operatorXbox::getLeftY)
+                .withArmManual(operatorXbox::getRightX)
+                .withIntakeShooter(operatorXbox.leftTrigger(), true)
+                .withIntakeShooter(operatorXbox.rightTrigger(), false)
+                /* Manual Collect and Score Commands */
+                .withCollect(operatorXbox.a())
+                .withManualScore(operatorXbox.b(), operatorXbox.leftBumper(), ControlStructure.ScoreLevels.SCORE_L2)
+                .withManualScore(operatorXbox.x(), operatorXbox.leftBumper(), ControlStructure.ScoreLevels.SCORE_L3)
+                .withManualScore(operatorXbox.y(), operatorXbox.leftBumper(), ControlStructure.ScoreLevels.SCORE_L4);
+    }
 
-        // Station cycling
-        isMode.and(operatorXbox.leftBumper()).onTrue(Commands.runOnce(poseSelector::cycleStationSlotDown));
-        isMode.and(operatorXbox.rightBumper()).onTrue(Commands.runOnce(poseSelector::cycleStationSlotUp));
+    /**
+     * Helper method to configure typical driver single stick controls.
+     * Extracted for reuse across multiple binding configurations.
+     *
+     * @param isMode The mode trigger to gate these bindings
+     */
+    private void typicalSingleStickControls(Trigger isMode) {
+        new ControlStream(
+                () -> -1 * driverRightStick.getY(),
+                () -> -1 * driverRightStick.getX(),
+                () -> -1 * driverRightStick.getTwist(),
+                isMode);
 
-        // Manual elevator control with deadband
-        Trigger elevatorManual = new Trigger(() -> Math.abs(operatorXbox.getLeftY()) > 0.1);
-        isMode.and(elevatorManual).whileTrue(
-                Commands.run(() -> {
-                    elevator.getElevator().set(operatorXbox.getLeftY() * -Elevator.ControlConstants.kElevatorSpeed);
-                }, elevator)
-        );
+        // Single stick bindings <!>
+    }
 
-        // Manual arm control with deadband
-        Trigger armManual = new Trigger(() -> Math.abs(operatorXbox.getRightX()) > 0.1);
-        isMode.and(armManual).whileTrue(
-                Commands.run(() -> {
-                    arm.getArm().set(operatorXbox.getRightX() * Arm.ControlConstants.kArmSpeed);
-                }, arm)
-        );
+    /**
+     * Helper method to configure typical driver dual stick controls.
+     * Extracted for reuse across multiple binding configurations.
+     *
+     * @param isMode The mode trigger to gate these bindings
+     */
+    private void typicalDualStickControls(Trigger isMode) {
+        new ControlStream(
+                () -> -1 * driverRightStick.getY(),
+                () -> -1 * driverRightStick.getX(),
+                () -> -1 * driverLeftStick.getTwist(),
+                isMode);
 
-        // Position presets
-        isMode.and(operatorXbox.a()).whileTrue(
-                elevator.setHeight(Elevator.ControlConstants.kStationSetpoint)
-                        .alongWith(arm.setAngle(Arm.ControlConstants.kStationSetpoint))
-        );
-
-        // Manual score positions
-        isMode.and(operatorXbox.b()).whileTrue(structure.manualScore(ControlStructure.ScoreLevels.SCORE_L2, operatorXbox.leftBumper()));
-        isMode.and(operatorXbox.x()).whileTrue(structure.manualScore(ControlStructure.ScoreLevels.SCORE_L3, operatorXbox.leftBumper()));
-        isMode.and(operatorXbox.y()).whileTrue(structure.manualScore(ControlStructure.ScoreLevels.SCORE_L4, operatorXbox.leftBumper()));
-
-        // Intake/shoot
-        isMode.and(operatorXbox.leftTrigger()).whileTrue(intakeShooter.intake());
-        isMode.and(operatorXbox.rightTrigger()).whileTrue(intakeShooter.shoot());
+        // Dual stick bindings <!>
     }
 
     /*
@@ -775,36 +400,6 @@ public class InputStructure {
      *  Set Custom controls below this block
      *
      */
-
-    /**
-     * Creates a configured SwerveInputStream for drive control.
-     * Applies standard deadband, scaling, and control mode settings.
-     *
-     * @param x                Forward/backward axis supplier
-     * @param y                Left/right axis supplier
-     * @param rotation         Rotation axis supplier
-     * @param translationScale Default translation scaling
-     * @param rotationScale    Default rotation scaling
-     * @return Configured SwerveInputStream ready for use
-     */
-    private SwerveInputStream getInputStream(
-            DoubleSupplier x,
-            DoubleSupplier y,
-            DoubleSupplier rotation,
-            double translationScale,
-            double rotationScale) {
-        return SwerveInputStream.of(
-                        swerve.getSwerveDrive(),
-                        x, y)
-                .cubeTranslationControllerAxis(true)
-                .withControllerRotationAxis(rotation)
-                .deadband(Constants.OperatorConstants.DEADBAND)
-                .scaleTranslation(translationScale)
-                .scaleRotation(rotationScale)
-                .robotRelative(true)
-                .allianceRelativeControl(false)
-                .translationHeadingOffset(Rotation2d.k180deg);
-    }
 
     /**
      * Gets the currently selected binding type.
@@ -824,33 +419,7 @@ public class InputStructure {
         return controlChooser;
     }
 
-    /**
-     * Example template for creating personalized driver bindings.
-     * Copy this method and customize for individual drivers.
-     * <p>
-     * Steps to add a new driver:
-     * 1. Copy this method and rename it (e.g., johnDriverBindings())
-     * 2. Add a new enum value to BindingType (e.g., DRIVER_JOHN)
-     * 3. Add the option to initializeControlChooser()
-     * 4. Call the new method from init()
-     * 5. Customize speeds and button mappings as desired
-     */
-    private void exampleCustomDriverBindings() {
-        // Custom speed constants for this driver
-        final double SLOW_TRANSLATION = 0.25;  // Even slower for precision
-        final double SLOW_ROTATION = 0.15;
-        final double NORMAL_TRANSLATION = 0.7;  // Slightly slower normal speed
-        final double NORMAL_ROTATION = 0.5;
-        final double BOOST_TRANSLATION = 0.9;   // Slightly limited boost
-        final double BOOST_ROTATION = 0.7;
-
-        // Create custom binding trigger
-        // Trigger isMode = new Trigger(() -> controlChooser.getSelected() == BindingType.DRIVER_EXAMPLE);
-
-        // Configure controls as desired...
-    }
-
-    // Control binding type enumeration
+    // Control binding type enum
     public enum BindingType {
         /*
         All controls using a single xbox controller.
@@ -882,8 +451,11 @@ public class InputStructure {
         TESTING
     }
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private class ControlStream {
-        // Local speed constants
+        /* Trigger used to enable all controls in this Control Stream class */
+        protected Optional<Trigger> isMode;
+        /* Drive train control constants */
         protected Optional<Double> SLOW_TRANSLATION;
         protected Optional<Double> SLOW_ROTATION;
         protected Optional<Double> NORMAL_TRANSLATION;
@@ -891,36 +463,79 @@ public class InputStructure {
         protected Optional<Double> BOOST_TRANSLATION;
         protected Optional<Double> BOOST_ROTATION;
         protected Optional<SwerveInputStream> inputStream;
-        protected Optional<Trigger> isMode;
+        protected Optional<Command> driveCommand;
+        /* Subsystem control constants */
+        protected Optional<Double> ELEVATOR_SPEED;
+        protected Optional<Double> ARM_SPEED;
 
-        public ControlStream(Trigger isMode) {
+
+        /**
+         * Input stream used to streamline the construction of custom input profiles.
+         *
+         * @param isMode {@link Trigger} used to determine when input should be allowed.
+         */
+        public ControlStream(DoubleSupplier x, DoubleSupplier y, DoubleSupplier rotation, Trigger isMode) {
+            /* Trigger used to enable all controls in this Control Stream class */
+            this.isMode = Optional.of(isMode);
+            /* Drive train control constants */
             this.SLOW_TRANSLATION = Optional.of(0.3);
             this.SLOW_ROTATION = Optional.of(0.2);
             this.NORMAL_TRANSLATION = Optional.of(0.8);
             this.NORMAL_ROTATION = Optional.of(0.6);
             this.BOOST_TRANSLATION = Optional.of(1.0);
             this.BOOST_ROTATION = Optional.of(0.75);
+            this.inputStream = Optional.of(SwerveInputStream.of(
+                            swerve.getSwerveDrive(),
+                            x, y)
+                    .cubeTranslationControllerAxis(true)
+                    .withControllerRotationAxis(rotation)
+                    .deadband(Constants.OperatorConstants.DEADBAND)
+                    .scaleTranslation(NORMAL_TRANSLATION.get())
+                    .scaleRotation(NORMAL_ROTATION.get())
+                    .robotRelative(true)
+                    .allianceRelativeControl(false)
+                    .translationHeadingOffset(Rotation2d.k180deg));
+            updateDriveCommand();
+            /* Subsystem control constants */
+            this.ELEVATOR_SPEED = Optional.of(Elevator.ControlConstants.kElevatorSpeed);
+            this.ARM_SPEED = Optional.of(Arm.ControlConstants.kArmSpeed);
 
-            this.inputStream = Optional.of(InputStructure.this.getInputStream(
-                    () -> driverXbox.getLeftY() * -1,
-                    () -> driverXbox.getLeftX() * -1,
-                    () -> driverXbox.getRightX() * -1,
-                    NORMAL_TRANSLATION.get(),
-                    NORMAL_ROTATION.get()).copy());
-
-            this.isMode = Optional.of(isMode);
+            // Set default drive command when enabled
+            isMode.and(DriverStation::isEnabled).onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(getDriveCommand())));
         }
 
         /**
+         * Input stream used to streamline the construction of custom input profiles.
          *
-         * @param inputStream
-         * @return
+         * @param isMode {@link Trigger} used to determine when input should be allowed.
          */
-        ControlStream withDifferentInputStream(SwerveInputStream inputStream) {
-            this.inputStream = Optional.of(inputStream);
-            return this;
+        public ControlStream(Trigger isMode) {
+            /* Trigger used to enable all controls in this Control Stream class */
+            this.isMode = Optional.of(isMode);
+            /* Drive train control constants */
+            this.SLOW_TRANSLATION = Optional.of(0.3);
+            this.SLOW_ROTATION = Optional.of(0.2);
+            this.NORMAL_TRANSLATION = Optional.of(0.8);
+            this.NORMAL_ROTATION = Optional.of(0.6);
+            this.BOOST_TRANSLATION = Optional.of(1.0);
+            this.BOOST_ROTATION = Optional.of(0.75);
+            /* Drive Controls not defined, I'll still define default drive variables for adding input streams after init. */
+            /* Subsystem control constants */
+            this.ELEVATOR_SPEED = Optional.of(Elevator.ControlConstants.kElevatorSpeed);
+            this.ARM_SPEED = Optional.of(Arm.ControlConstants.kArmSpeed);
+
+            // Set default drive command when enabled
+            isMode.and(DriverStation::isEnabled).onTrue(Commands.runOnce(() -> swerve.setDefaultCommand(getDriveCommand())));
         }
 
+        /*  Operator Type Controls  */
+
+        /**
+         * Slows drive train speed.
+         *
+         * @param shouldSlow button mapping {@link Trigger} to use.
+         * @return {@link InputStructure} for chaining.
+         */
         ControlStream withSlowTranslation(Trigger shouldSlow) {
             if (isMode.isPresent() && inputStream.isPresent()
                     && SLOW_TRANSLATION.isPresent() && NORMAL_TRANSLATION.isPresent()) {
@@ -933,6 +548,12 @@ public class InputStructure {
             return this;
         }
 
+        /**
+         * Boosts drive train speed.
+         *
+         * @param shouldBoost button mapping {@link Trigger} to use.
+         * @return {@link InputStructure} for chaining.
+         */
         ControlStream withBoostTranslation(Trigger shouldBoost) {
             if (isMode.isPresent() && inputStream.isPresent()
                     && BOOST_TRANSLATION.isPresent() && NORMAL_TRANSLATION.isPresent()) {
@@ -945,15 +566,14 @@ public class InputStructure {
             return this;
         }
 
-        ControlStream setHeadingOffset(Angle headingOffset) {
-            if (inputStream.isPresent()) {
-                inputStream.get().translationHeadingOffset(new  Rotation2d(headingOffset));
-            } else {
-                DriverStation.reportWarning("Input Stream not found, setting Heading Offset failed.", true);
-            }
-            return this;
-        }
-
+        /**
+         * Method to switch turning the heading offset on and off.
+         * Heading offset can be set with setHeadingOffset(Angle)
+         * {Default : 180 degrees}
+         *
+         * @param shouldOffset button mapping {@link Trigger} to use.
+         * @return {@link InputStructure} for chaining.
+         */
         ControlStream withHeadingOffset(Trigger shouldOffset) {
             if (isMode.isPresent() && inputStream.isPresent()
                     && BOOST_TRANSLATION.isPresent() && NORMAL_TRANSLATION.isPresent()) {
@@ -966,6 +586,12 @@ public class InputStructure {
             return this;
         }
 
+        /**
+         * Method to switch between field and robot centric drives.
+         *
+         * @param shouldToggleCentricity button mapping {@link Trigger} to use.
+         * @return {@link InputStructure} for chaining.
+         */
         ControlStream withToggleCentricity(Trigger shouldToggleCentricity) {
             if (isMode.isPresent() && inputStream.isPresent()) {
                 isMode.get().and(shouldToggleCentricity).toggleOnTrue(Commands.runEnd(
@@ -978,6 +604,12 @@ public class InputStructure {
             return this;
         }
 
+        /**
+         * Command to automatically drive to the selected coral station pose and intake until a game piece is sensed.
+         *
+         * @param shouldAutoCollect button mapping {@link Trigger} to use.
+         * @return {@link InputStructure} for chaining.
+         */
         ControlStream withAutoCollect(Trigger shouldAutoCollect) {
             if (isMode.isPresent()) {
                 isMode.get().and(shouldAutoCollect).whileTrue(structure.autoCollect(driverXbox.rightTrigger()));
@@ -987,6 +619,14 @@ public class InputStructure {
             return this;
         }
 
+        /**
+         * Command to automatically drive to the selected reef pose and shoot until the sensor is inactive.
+         *
+         * @param shouldAutoScore button mapping {@link Trigger} to use.
+         * @param shouldBoostSpeed button mapping {@link Trigger} to use for boosting auto drive speed.
+         * @param scoreLevel where to score the coral.
+         * @return {@link InputStructure} for chaining.
+         */
         ControlStream withAutoScore(Trigger shouldAutoScore, Trigger shouldBoostSpeed, ControlStructure.ScoreLevels scoreLevel) {
             if (isMode.isPresent()) {
                 isMode.get().and(shouldAutoScore).whileTrue(structure.autoScore(scoreLevel, shouldBoostSpeed));
@@ -996,8 +636,401 @@ public class InputStructure {
             return this;
         }
 
+        /*  Operator Type Controls  */
+
+        /**
+         * Updates reef selection with specified reef side.
+         *
+         * @param shouldPoseSelection button mapping {@link Trigger} to use.
+         * @param reefSide {@link frc.robot.utils.robot.PoseSelector.ReefSide} to select.
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream withReefSelection(Trigger shouldPoseSelection, PoseSelector.ReefSide reefSide) {
+            if (isMode.isPresent()) {
+                isMode.get().and(shouldPoseSelection).onTrue(Commands.runOnce(() -> poseSelector.selectReefSide(reefSide)));
+            } else {
+                DriverStation.reportWarning("isMode not found, Reef Selection failed.", true);
+            }
+            return this;
+        }
+
+        /**
+         * Cycles the station slot and cage pose selections.
+         *
+         * @param shouldPoseCycling button mapping {@link Trigger} to use.
+         * @param isUp whether to cycle up or down.
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream withPoseCycling(Trigger shouldPoseCycling, boolean isUp) {
+            if (isMode.isPresent()) {
+                if (isUp) {
+                    isMode.get().and(shouldPoseCycling).onTrue(Commands.runOnce(poseSelector::cycleStationSlotUp));
+                } else {
+                    isMode.get().and(shouldPoseCycling).onTrue(Commands.runOnce(poseSelector::cycleStationSlotDown));
+                }
+            } else {
+                DriverStation.reportWarning("isMode not found, Pose Cycling failed.", true);
+            }
+            return this;
+        }
+
+        /**
+         * Updates pose selection with specified side.
+         *
+         * @param shouldPoseSelection button mapping {@link Trigger} to use.
+         * @param isRight whether to select right or left pose.
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream withLRSelection(Trigger shouldPoseSelection, boolean isRight) {
+            if (isMode.isPresent()) {
+                if (isRight) {
+                    isMode.get().and(shouldPoseSelection).onTrue(Commands.runOnce(() -> poseSelector.selectLR(true)));
+                } else {
+                    isMode.get().and(shouldPoseSelection).onTrue(Commands.runOnce(() -> poseSelector.selectLR(false)));
+                }
+            } else {
+                DriverStation.reportWarning("isMode not found, LR Selection failed.", true);
+            }
+            return this;
+        }
+
+        /**
+         * Cycles pose selection with toward side.
+         *
+         * @param shouldPoseSelection button mapping {@link Trigger} to use.
+         * @param isRight whether to cycle right or left.
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream withLRCycle(Trigger shouldPoseSelection, boolean isRight) {
+            if (isMode.isPresent()) {
+                if (isRight) {
+                    isMode.get().and(shouldPoseSelection).onTrue(Commands.runOnce(poseSelector::cycleReefPoseRight));
+                } else {
+                    isMode.get().and(shouldPoseSelection).onTrue(Commands.runOnce(poseSelector::cycleReefPoseLeft));
+                }
+            } else {
+                DriverStation.reportWarning("isMode not found, LR Selection failed.", true);
+            }
+            return this;
+        }
+
+        /**
+         * Controls the elevator manually.
+         * Set speed with setElevatorSpeed(double) or use a withElevatorManual method with defined speed.
+         *
+         * @param shouldElevatorManual button mapping {@link Trigger} to use.
+         * @param isUp whether drive elevator up or down.
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream withElevatorManual(Trigger shouldElevatorManual, boolean isUp) {
+            if (isMode.isPresent() && ELEVATOR_SPEED.isPresent()) {
+                if (isUp) {
+                    isMode.get().and(shouldElevatorManual).whileTrue(elevator.elevCmd(ELEVATOR_SPEED.get()));
+                } else {
+                    isMode.get().and(shouldElevatorManual).whileTrue(elevator.elevCmd(-ELEVATOR_SPEED.get()));
+                }
+            } else {
+                DriverStation.reportWarning("Something not found, Elevator Manual failed.", true);
+            }
+            return this;
+        }
+
+        /**
+         * Controls the elevator manually.
+         * Set speed with setElevatorSpeed(double) or use a withElevatorManual method with defined speed.
+         *
+         * @param shouldElevatorManual button mapping {@link Trigger} to use.
+         * @param isUp whether drive elevator up or down.
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream withElevatorManual(Trigger shouldElevatorManual, boolean isUp, double speed) {
+            if (isMode.isPresent() && ELEVATOR_SPEED.isPresent()) {
+                if (isUp) {
+                    isMode.get().and(shouldElevatorManual).whileTrue(elevator.elevCmd(speed));
+                } else {
+                    isMode.get().and(shouldElevatorManual).whileTrue(elevator.elevCmd(-speed));
+                }
+            } else {
+                DriverStation.reportWarning("Something not found, Elevator Manual failed.", true);
+            }
+            return this;
+        }
+
+        /**
+         * Controls the elevator manually.
+         * Set speed with setElevatorSpeed(double) or use a withElevatorManual method with defined speed.
+         *
+         * @param shouldElevatorManual button mapping {@link Trigger} to use.
+         * @param isUp whether drive elevator up or down.
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream withElevatorManual(Trigger shouldElevatorManual, boolean isUp, Supplier<Double> speed) {
+            if (isMode.isPresent() && ELEVATOR_SPEED.isPresent()) {
+                if (isUp) {
+                    isMode.get().and(shouldElevatorManual).whileTrue(elevator.elevCmd(speed));
+                } else {
+                    isMode.get().and(shouldElevatorManual).whileTrue(elevator.elevCmd(() -> -speed.get()));
+                }
+            } else {
+                DriverStation.reportWarning("Something not found, Elevator Manual failed.", true);
+            }
+            return this;
+        }
+
+        /**
+         * Controls the elevator manually with an axis. Uses deadband constant as trigger.
+         *
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream withElevatorManual(Supplier<Double> speed) {
+            if (isMode.isPresent()) {
+                isMode.get().and(() -> speed.get() > Constants.OperatorConstants.DEADBAND)
+                        .whileTrue(elevator.elevCmd(speed));
+            } else {
+                DriverStation.reportWarning("Something not found, Elevator Manual failed.", true);
+            }
+            return this;
+        }
+
+        /**
+         * Controls the arm manually.
+         * Set speed with setArmSpeed(double) or use a withArmManual method with defined speed.
+         *
+         * @param shouldArmManual button mapping {@link Trigger} to use.
+         * @param isUp whether drive elevator up or down.
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream withArmManual(Trigger shouldArmManual, boolean isUp) {
+            if (isMode.isPresent() && ARM_SPEED.isPresent()) {
+                if (isUp) {
+                    isMode.get().and(shouldArmManual).whileTrue(arm.armCmd(ARM_SPEED.get()));
+                } else {
+                    isMode.get().and(shouldArmManual).whileTrue(arm.armCmd(-ARM_SPEED.get()));
+                }
+            } else {
+                DriverStation.reportWarning("Something not found, Arm Manual failed.", true);
+            }
+            return this;
+        }
+
+        /**
+         * Controls the arm manually.
+         * Set speed with setArmSpeed(double) or use a withArmManual method with defined speed.
+         *
+         * @param shouldArmManual button mapping {@link Trigger} to use.
+         * @param isUp whether drive elevator up or down.
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream withArmManual(Trigger shouldArmManual, boolean isUp, double speed) {
+            if (isMode.isPresent() && ARM_SPEED.isPresent()) {
+                if (isUp) {
+                    isMode.get().and(shouldArmManual).whileTrue(arm.armCmd(speed));
+                } else {
+                    isMode.get().and(shouldArmManual).whileTrue(arm.armCmd(-speed));
+                }
+            } else {
+                DriverStation.reportWarning("Something not found, Arm Manual failed.", true);
+            }
+            return this;
+        }
+
+        /**
+         * Controls the arm manually.
+         * Set speed with setArmSpeed(double) or use a withArmManual method with defined speed.
+         *
+         * @param shouldArmManual button mapping {@link Trigger} to use.
+         * @param isUp whether drive elevator up or down.
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream withArmManual(Trigger shouldArmManual, boolean isUp, Supplier<Double> speed) {
+            if (isMode.isPresent() && ARM_SPEED.isPresent()) {
+                if (isUp) {
+                    isMode.get().and(shouldArmManual).whileTrue(arm.armCmd(speed));
+                } else {
+                    isMode.get().and(shouldArmManual).whileTrue(arm.armCmd(() -> -speed.get()));
+                }
+            } else {
+                DriverStation.reportWarning("Something not found, Arm Manual failed.", true);
+            }
+            return this;
+        }
+
+        /**
+         * Controls the arm manually with an axis. Uses deadband constant as trigger.
+         *
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream withArmManual(Supplier<Double> speed) {
+            if (isMode.isPresent()) {
+                isMode.get().and(() -> speed.get() > Constants.OperatorConstants.DEADBAND)
+                        .whileTrue(arm.armCmd(speed));
+            } else {
+                DriverStation.reportWarning("Something not found, Arm Manual failed.", true);
+            }
+            return this;
+        }
+
+        /**
+         * Runs the intake/shooter motor at predetermined uneditable speeds.
+         *
+         * @param shouldIntakeShooter button mapping {@link Trigger} to use.
+         * @param isIntake whether to intake or shoot
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream withIntakeShooter(Trigger shouldIntakeShooter, boolean isIntake) {
+            if (isMode.isPresent()) {
+                if (isIntake) {
+                    isMode.get().and(shouldIntakeShooter).whileTrue(intakeShooter.intake());
+                } else {
+                    isMode.get().and(shouldIntakeShooter).whileTrue(intakeShooter.shoot());
+                }
+            } else {
+                DriverStation.reportWarning("Something not found, Intake Shooter failed.", true);
+            }
+            return this;
+        }
+
+        /**
+         * Command to move structure to coral station pose and intake until a game piece is sensed.
+         *
+         * @param shouldCollect button mapping {@link Trigger} to use.
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream withCollect(Trigger shouldCollect) {
+            if (isMode.isPresent()) {
+                isMode.get().and(shouldCollect).whileTrue(structure.collect());
+            } else {
+                DriverStation.reportWarning("isMode not found, Collect failed.", true);
+            }
+            return this;
+        }
+
+        /**
+         * Command that when enabled moves structures to selected reef pose then waits for the isReady trigger to then shoot
+         * the until the sensor is inactive.
+         * Does not drive.
+         *
+         * @param shouldAutoScore button mapping {@link Trigger} to use.
+         * @param isReady when to start scoring.
+         * @param scoreLevel where to score the coral.
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream withManualScore(Trigger shouldAutoScore, Trigger isReady, ControlStructure.ScoreLevels scoreLevel) {
+            if (isMode.isPresent()) {
+                isMode.get().and(shouldAutoScore).whileTrue(structure.manualScore(scoreLevel, isReady));
+            } else {
+                DriverStation.reportWarning("isMode not found, Auto Score failed.", true);
+            }
+            return this;
+        }
+
+        /* Control Constant Setting Methods */
+
+        /**
+         * Updates the driveCommand from the latest {@link SwerveInputStream}.
+         *
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream updateDriveCommand() {
+            if (inputStream.isPresent()) {
+                this.driveCommand = Optional.of(swerve.driveFieldOriented(inputStream.get()));
+                swerve.setDefaultCommand(driveCommand.get());
+            } else {
+                DriverStation.reportWarning("Input stream not found, updateDriveCommand failed.", false);
+            }
+            return this;
+        }
+
+        /**
+         * Changes the default drive command.
+         * This just sets the commands as the SwerveSubsystem default command.
+         *
+         * @param driveCommand {@link Command} to use.
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream setDriveCommand(Command driveCommand) {
+            this.driveCommand = Optional.of(driveCommand);
+            updateDriveCommand();
+            return this;
+        }
+
+        /**
+         * Method to set the heading offset.
+         * Offset is then enabled by using withHeadingOffset(Trigger)
+         *
+         * @param headingOffset heading offset angle.
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream setHeadingOffset(Angle headingOffset) {
+            if (inputStream.isPresent()) {
+                inputStream.get().translationHeadingOffset(new  Rotation2d(headingOffset));
+            } else {
+                DriverStation.reportWarning("Input Stream not found, setting Heading Offset failed.", true);
+            }
+            return this;
+        }
+
+        /**
+         * Changes the {@link ControlStream}'s {@link SwerveInputStream} for controlling the drive train.
+         *
+         * @param inputStream {@link SwerveInputStream} to use.
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream setInputStream(SwerveInputStream inputStream) {
+            this.inputStream = Optional.of(inputStream);
+            return this;
+        }
+
+        /**
+         * Speed to use to control the elevator when not defining a speed.
+         *
+         * @param elevatorSpeed Duty cycle speed to use. {-0.0, 1.0}
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream setElevatorSpeed(double elevatorSpeed) {
+            if (ELEVATOR_SPEED.isPresent()) {
+                this.ELEVATOR_SPEED = Optional.of(MathUtil.clamp(elevatorSpeed, -0.0, 1.0));
+            } else {
+                DriverStation.reportWarning("Elevator Speed is invalid.", true);
+            }
+            return this;
+        }
+
+        /**
+         * Speed to use to control the arm when not defining a speed.
+         *
+         * @param armSpeed Duty cycle speed to use. {-0.0, 1.0}
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream setArmSpeed(double armSpeed) {
+            if (ARM_SPEED.isPresent()) {
+                this.ARM_SPEED = Optional.of(MathUtil.clamp(armSpeed, -0.0, 1.0));
+            } else {
+                DriverStation.reportWarning("Arn Speed is invalid.", true);
+            }
+            return this;
+        }
+
+        /* Control Constant Getting Methods */
+
+        /**
+         * Gets the drive command.
+         *
+         * @return the {@link SwerveInputStream} or if not found will report a warning and return null.
+         */
+        Command getDriveCommand() {
+            Command command = driveCommand.orElse(null);
+            if (command == null) {
+                DriverStation.reportWarning("Drive Command is null", false);
+                return null;
+            } else {
+                return command;
+            }
+        }
+
         /**
          * Gets the input stream.
+         *
          * @return the {@link SwerveInputStream} or if not found will report a warning and return null.
          */
         SwerveInputStream getInputStream() {
@@ -1009,5 +1042,8 @@ public class InputStructure {
                 return stream;
             }
         }
+
+        /* Miscellaneous */
+
     }
 }

@@ -17,6 +17,8 @@ import yams.motorcontrollers.SmartMotorControllerConfig.*;
 import yams.motorcontrollers.local.SparkWrapper;
 import yams.telemetry.SmartMotorControllerTelemetryConfig;
 
+import java.util.function.Supplier;
+
 import static edu.wpi.first.units.Units.*;
 import static yams.mechanisms.SmartMechanism.*;
 
@@ -178,6 +180,17 @@ public class Arm extends SubsystemBase {
      * @return {@link Command}
      */
     public Command armCmd(double dutycycle) {
+        return arm.set(dutycycle)
+                .finallyDo(() -> arm.set(0.0));
+    }
+
+    /**
+     * Set the DutyCycle of the {@link yams.motorcontrollers.SmartMotorController}.
+     *
+     * @param dutycycle [-1,1] to set.
+     * @return {@link Command}
+     */
+    public Command armCmd(Supplier<Double> dutycycle) {
         return arm.set(dutycycle)
                 .finallyDo(() -> arm.set(0.0));
     }

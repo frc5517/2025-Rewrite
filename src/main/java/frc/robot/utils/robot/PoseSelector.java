@@ -84,93 +84,27 @@ public class PoseSelector extends SubsystemBase {
     }
 
     /**
-     * Selects north reef side.
+     * Updates reef selection with reefSide.
+     *
+     * @param reefSide {@link ReefSide} to use.
      */
-    public void selectNorth() {
-        reefSide = ReefSide.NORTH;
+    public void selectReefSide(ReefSide reefSide) {
+        this.reefSide = reefSide;
         updatePoseData(true);
     }
 
     /**
-     * Selects northeast reef side.
+     * Updates reef selection with left or right side.
+     *
+     * @param isRight whether to select right or left.
      */
-    public void selectNorthEast() {
-        reefSide = ReefSide.NORTHEAST;
+    public void selectLR(boolean isRight) {
+        if (isRight) {
+            leftOrRight = LeftOrRight._RIGHT;
+        } else {
+            leftOrRight = LeftOrRight._LEFT;
+        }
         updatePoseData(true);
-    }
-
-    /**
-     * Selects northwest reef side.
-     */
-    public void selectNorthWest() {
-        reefSide = ReefSide.NORTHWEST;
-        updatePoseData(true);
-    }
-
-    /**
-     * Selects south reef side.
-     */
-    public void selectSouth() {
-        reefSide = ReefSide.SOUTH;
-        updatePoseData(true);
-    }
-
-    /**
-     * Selects southeast reef side.
-     */
-    public void selectSouthEast() {
-        reefSide = ReefSide.SOUTHEAST;
-        updatePoseData(true);
-    }
-
-    /**
-     * Selects southwest reef side.
-     */
-    public void selectSouthWest() {
-        reefSide = ReefSide.SOUTHWEST;
-        updatePoseData(true);
-    }
-
-    /**
-     * Selects left branch of reef side and left coral station.
-     */
-    public void selectLeft() {
-        leftOrRight = LeftOrRight._LEFT;
-        updatePoseData(true);
-        updateStationPose();
-    }
-
-    /**
-     * Selects right branch of reef side and right coral station.
-     */
-    public void selectRight() {
-        leftOrRight = LeftOrRight._RIGHT;
-        updatePoseData(true);
-        updateStationPose();
-    }
-
-    /**
-     * Selects slot 1 for coral station and cages.
-     */
-    public void selectSlot1() {
-        stationSlot = StationSlot.POSE_1;
-        updateStationPose();
-    }
-
-    /**
-     * Selects slot 2 for coral station and cages.
-     */
-    public void selectSlot2() {
-        stationSlot = StationSlot.POSE_2;
-        updateStationPose();
-    }
-
-    /**
-     * Selects slot 3 for coral station and cages.
-     */
-    public void selectSlot3() {
-        stationSlot = StationSlot.POSE_3;
-        updateStationPose();
     }
 
     /**

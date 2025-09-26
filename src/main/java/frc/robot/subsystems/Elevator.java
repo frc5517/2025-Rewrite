@@ -23,6 +23,9 @@ import yams.motorcontrollers.SmartMotorControllerConfig;
 import yams.motorcontrollers.SmartMotorControllerConfig.*;
 import yams.motorcontrollers.local.SparkWrapper;
 
+import java.util.function.DoubleSupplier;
+import java.util.function.Supplier;
+
 import static edu.wpi.first.units.Units.*;
 import static frc.robot.utils.robot.Telemetry.limitPublisher;
 import static yams.mechanisms.SmartMechanism.*;
@@ -204,6 +207,16 @@ public class Elevator extends SubsystemBase {
      * @return {@link Command}
      */
     public Command elevCmd(double dutyCycle) {
+        return elevator.set(dutyCycle);
+    }
+
+    /**
+     * Set the DutyCycle of the {@link yams.motorcontrollers.SmartMotorController}.
+     *
+     * @param dutyCycle [-1,1] to set.
+     * @return {@link Command}
+     */
+    public Command elevCmd(Supplier<Double> dutyCycle) {
         return elevator.set(dutyCycle);
     }
 
