@@ -36,15 +36,6 @@ import java.util.function.Supplier;
  * <p>
  * The class uses a mode-based binding system where only the selected control scheme
  * is active at any given time, preventing control conflicts between different input devices.
- * <p>
- * To add custom driver bindings:
- * 1. Create a new method following the naming pattern: [driverName]Bindings()
- * 2. Add the driver option to BindingType enum
- * 3. Add option to initializeControlChooser()
- * 4. Call the method from init()
- *
- * @author Team [Your Team Number]
- * @version 2025 Season
  */
 public class InputStructure {
 
