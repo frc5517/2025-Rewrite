@@ -71,6 +71,7 @@ public class SwerveSubsystem extends SubsystemBase {
      * Enable vision odometry updates while driving.
      */
     private final boolean visionDriveTest = true;
+    public boolean driveToPoseIsRunning = false;
     /**
      * PhotonVision class to keep an accurate odometry.
      */
@@ -235,8 +236,6 @@ public class SwerveSubsystem extends SubsystemBase {
         return new PathPlannerAuto(pathName);
     }
 
-
-    public boolean driveToPoseIsRunning = false;
     /**
      * Use PathPlanner Path finding to go to a point on the field.
      *
@@ -277,9 +276,9 @@ public class SwerveSubsystem extends SubsystemBase {
         return
                 // Path finds to pose
                 AutoBuilder.pathfindThenFollowPath(
-                        path,
-                        constraints
-                ).until(() -> isPoseNear(pose.get(), getPose(), kTranslationTolerance, kRotationTolerance))
+                                path,
+                                constraints
+                        ).until(() -> isPoseNear(pose.get(), getPose(), kTranslationTolerance, kRotationTolerance))
                         .finallyDo(() -> driveToPoseIsRunning = false);
     }
 
@@ -330,8 +329,8 @@ public class SwerveSubsystem extends SubsystemBase {
     /**
      * Checks given pose matches an expected value within a tolerance.
      *
-     * @param expected        The expected value
-     * @param actual          The actual value
+     * @param expected  The expected value
+     * @param actual    The actual value
      * @param tolerance The allowed difference between the actual and the expected value in meters
      * @return Whether the actual value is within the allowed tolerance
      */
@@ -349,8 +348,8 @@ public class SwerveSubsystem extends SubsystemBase {
     /**
      * Checks given pose matches an expected value within a tolerance.
      *
-     * @param expected        The expected value
-     * @param actual          The actual value
+     * @param expected  The expected value
+     * @param actual    The actual value
      * @param tolerance The allowed difference between the actual and the expected value in meters
      * @return Whether the actual value is within the allowed tolerance
      */

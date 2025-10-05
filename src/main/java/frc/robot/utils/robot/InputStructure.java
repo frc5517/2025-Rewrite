@@ -53,6 +53,7 @@ public class InputStructure {
     private final IntakeShooter intakeShooter;
     private final ControlStructure structure;
     private final PoseSelector poseSelector;
+
     /**
      * Constructs a new RobotControlBindings instance.
      *
@@ -71,7 +72,8 @@ public class InputStructure {
             ControlStructure structure,
             PoseSelector poseSelector) {
 
-        this.driverXbox = new CommandXboxController(0);;
+        this.driverXbox = new CommandXboxController(0);
+        ;
         this.operatorXbox = new CommandXboxController(1);
         this.driverRightStick = new CommandJoystick(0);
         this.driverLeftStick = new CommandJoystick(1);
@@ -293,7 +295,16 @@ public class InputStructure {
     private void testBindings() {
         // Mode trigger - only active when this binding mode is selected
         Trigger isMode = new Trigger(() -> controlChooser.getSelected() == BindingType.TESTING);
-        new ControlStream(isMode);
+        new ControlStream(
+                () -> -1 * driverXbox.getLeftX(),
+                () -> -1 * driverXbox.getLeftY(),
+                () -> -1 * driverXbox.getRightX(),
+                isMode)
+
+                .withElevatorManual(() -> -1.0 * driverXbox.getLeftY())
+                .withArmManual(() -> -1.0 * driverXbox.getRightY())
+                .withIntakeShooter(driverXbox.leftBumper(), true)
+                .withIntakeShooter(driverXbox.rightBumper(), false);
     }
 
     /**
@@ -442,7 +453,10 @@ public class InputStructure {
         TESTING
     }
 
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+
+    // Warning suppression to clean up, suppressions are as follows.
+    // {Optionals always give a warning, Some methods warn when all parts are not used, this is for when a method doesn't chain into another}
+    @SuppressWarnings({"OptionalUsedAsFieldOrParameterType", "SameParameterValue", "UnusedReturnValue"})
     private class ControlStream {
         /* Trigger used to enable all controls in this Control Stream class */
         protected Optional<Trigger> isMode;
@@ -612,9 +626,9 @@ public class InputStructure {
         /**
          * Command to automatically drive to the selected reef pose and shoot until the sensor is inactive.
          *
-         * @param shouldAutoScore button mapping {@link Trigger} to use.
+         * @param shouldAutoScore  button mapping {@link Trigger} to use.
          * @param shouldBoostSpeed button mapping {@link Trigger} to use for boosting auto drive speed.
-         * @param scoreLevel where to score the coral.
+         * @param scoreLevel       where to score the coral.
          * @return {@link InputStructure} for chaining.
          */
         ControlStream withAutoScore(Trigger shouldAutoScore, Trigger shouldBoostSpeed, ControlStructure.ScoreLevels scoreLevel) {
@@ -632,7 +646,7 @@ public class InputStructure {
          * Updates reef selection with specified reef side.
          *
          * @param shouldPoseSelection button mapping {@link Trigger} to use.
-         * @param reefSide {@link frc.robot.utils.robot.PoseSelector.ReefSide} to select.
+         * @param reefSide            {@link frc.robot.utils.robot.PoseSelector.ReefSide} to select.
          * @return {@link InputStructure} for chaining.
          */
         ControlStream withReefSelection(Trigger shouldPoseSelection, PoseSelector.ReefSide reefSide) {
@@ -648,7 +662,7 @@ public class InputStructure {
          * Cycles the station slot and cage pose selections.
          *
          * @param shouldPoseCycling button mapping {@link Trigger} to use.
-         * @param isUp whether to cycle up or down.
+         * @param isUp              whether to cycle up or down.
          * @return {@link InputStructure} for chaining.
          */
         ControlStream withPoseCycling(Trigger shouldPoseCycling, boolean isUp) {
@@ -668,7 +682,7 @@ public class InputStructure {
          * Updates pose selection with specified side.
          *
          * @param shouldPoseSelection button mapping {@link Trigger} to use.
-         * @param isRight whether to select right or left pose.
+         * @param isRight             whether to select right or left pose.
          * @return {@link InputStructure} for chaining.
          */
         ControlStream withLRSelection(Trigger shouldPoseSelection, boolean isRight) {
@@ -688,7 +702,7 @@ public class InputStructure {
          * Cycles pose selection with toward side.
          *
          * @param shouldPoseSelection button mapping {@link Trigger} to use.
-         * @param isRight whether to cycle right or left.
+         * @param isRight             whether to cycle right or left.
          * @return {@link InputStructure} for chaining.
          */
         ControlStream withLRCycle(Trigger shouldPoseSelection, boolean isRight) {
@@ -709,7 +723,7 @@ public class InputStructure {
          * Set speed with setElevatorSpeed(double) or use a withElevatorManual method with defined speed.
          *
          * @param shouldElevatorManual button mapping {@link Trigger} to use.
-         * @param isUp whether drive elevator up or down.
+         * @param isUp                 whether drive elevator up or down.
          * @return {@link InputStructure} for chaining.
          */
         ControlStream withElevatorManual(Trigger shouldElevatorManual, boolean isUp) {
@@ -730,7 +744,7 @@ public class InputStructure {
          * Set speed with setElevatorSpeed(double) or use a withElevatorManual method with defined speed.
          *
          * @param shouldElevatorManual button mapping {@link Trigger} to use.
-         * @param isUp whether drive elevator up or down.
+         * @param isUp                 whether drive elevator up or down.
          * @return {@link InputStructure} for chaining.
          */
         ControlStream withElevatorManual(Trigger shouldElevatorManual, boolean isUp, double speed) {
@@ -751,7 +765,7 @@ public class InputStructure {
          * Set speed with setElevatorSpeed(double) or use a withElevatorManual method with defined speed.
          *
          * @param shouldElevatorManual button mapping {@link Trigger} to use.
-         * @param isUp whether drive elevator up or down.
+         * @param isUp                 whether drive elevator up or down.
          * @return {@link InputStructure} for chaining.
          */
         ControlStream withElevatorManual(Trigger shouldElevatorManual, boolean isUp, Supplier<Double> speed) {
@@ -787,7 +801,7 @@ public class InputStructure {
          * Set speed with setArmSpeed(double) or use a withArmManual method with defined speed.
          *
          * @param shouldArmManual button mapping {@link Trigger} to use.
-         * @param isUp whether drive elevator up or down.
+         * @param isUp            whether drive elevator up or down.
          * @return {@link InputStructure} for chaining.
          */
         ControlStream withArmManual(Trigger shouldArmManual, boolean isUp) {
@@ -808,7 +822,7 @@ public class InputStructure {
          * Set speed with setArmSpeed(double) or use a withArmManual method with defined speed.
          *
          * @param shouldArmManual button mapping {@link Trigger} to use.
-         * @param isUp whether drive elevator up or down.
+         * @param isUp            whether drive elevator up or down.
          * @return {@link InputStructure} for chaining.
          */
         ControlStream withArmManual(Trigger shouldArmManual, boolean isUp, double speed) {
@@ -829,7 +843,7 @@ public class InputStructure {
          * Set speed with setArmSpeed(double) or use a withArmManual method with defined speed.
          *
          * @param shouldArmManual button mapping {@link Trigger} to use.
-         * @param isUp whether drive elevator up or down.
+         * @param isUp            whether drive elevator up or down.
          * @return {@link InputStructure} for chaining.
          */
         ControlStream withArmManual(Trigger shouldArmManual, boolean isUp, Supplier<Double> speed) {
@@ -864,7 +878,7 @@ public class InputStructure {
          * Runs the intake/shooter motor at predetermined uneditable speeds.
          *
          * @param shouldIntakeShooter button mapping {@link Trigger} to use.
-         * @param isIntake whether to intake or shoot
+         * @param isIntake            whether to intake or shoot
          * @return {@link InputStructure} for chaining.
          */
         ControlStream withIntakeShooter(Trigger shouldIntakeShooter, boolean isIntake) {
@@ -901,8 +915,8 @@ public class InputStructure {
          * Does not drive.
          *
          * @param shouldAutoScore button mapping {@link Trigger} to use.
-         * @param isReady when to start scoring.
-         * @param scoreLevel where to score the coral.
+         * @param isReady         when to start scoring.
+         * @param scoreLevel      where to score the coral.
          * @return {@link InputStructure} for chaining.
          */
         ControlStream withManualScore(Trigger shouldAutoScore, Trigger isReady, ControlStructure.ScoreLevels scoreLevel) {
@@ -932,19 +946,6 @@ public class InputStructure {
         }
 
         /**
-         * Changes the default drive command.
-         * This just sets the commands as the SwerveSubsystem default command.
-         *
-         * @param driveCommand {@link Command} to use.
-         * @return {@link InputStructure} for chaining.
-         */
-        ControlStream setDriveCommand(Command driveCommand) {
-            this.driveCommand = Optional.of(driveCommand);
-            updateDriveCommand();
-            return this;
-        }
-
-        /**
          * Method to set the heading offset.
          * Offset is then enabled by using withHeadingOffset(Trigger)
          *
@@ -953,21 +954,10 @@ public class InputStructure {
          */
         ControlStream setHeadingOffset(Angle headingOffset) {
             if (inputStream.isPresent()) {
-                inputStream.get().translationHeadingOffset(new  Rotation2d(headingOffset));
+                inputStream.get().translationHeadingOffset(new Rotation2d(headingOffset));
             } else {
                 DriverStation.reportWarning("Input Stream not found, setting Heading Offset failed.", true);
             }
-            return this;
-        }
-
-        /**
-         * Changes the {@link ControlStream}'s {@link SwerveInputStream} for controlling the drive train.
-         *
-         * @param inputStream {@link SwerveInputStream} to use.
-         * @return {@link InputStructure} for chaining.
-         */
-        ControlStream setInputStream(SwerveInputStream inputStream) {
-            this.inputStream = Optional.of(inputStream);
             return this;
         }
 
@@ -1001,8 +991,6 @@ public class InputStructure {
             return this;
         }
 
-        /* Control Constant Getting Methods */
-
         /**
          * Gets the drive command.
          *
@@ -1019,6 +1007,21 @@ public class InputStructure {
         }
 
         /**
+         * Changes the default drive command.
+         * This just sets the commands as the SwerveSubsystem default command.
+         *
+         * @param driveCommand {@link Command} to use.
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream setDriveCommand(Command driveCommand) {
+            this.driveCommand = Optional.of(driveCommand);
+            updateDriveCommand();
+            return this;
+        }
+
+        /* Control Constant Getting Methods */
+
+        /**
          * Gets the input stream.
          *
          * @return the {@link SwerveInputStream} or if not found will report a warning and return null.
@@ -1031,6 +1034,17 @@ public class InputStructure {
             } else {
                 return stream;
             }
+        }
+
+        /**
+         * Changes the {@link ControlStream}'s {@link SwerveInputStream} for controlling the drive train.
+         *
+         * @param inputStream {@link SwerveInputStream} to use.
+         * @return {@link InputStructure} for chaining.
+         */
+        ControlStream setInputStream(SwerveInputStream inputStream) {
+            this.inputStream = Optional.of(inputStream);
+            return this;
         }
 
         /* Miscellaneous */

@@ -17,7 +17,10 @@ import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StringPublisher;
 import edu.wpi.first.networktables.StructPublisher;
-import edu.wpi.first.units.measure.*;
+import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.units.measure.Distance;
+import edu.wpi.first.units.measure.LinearVelocity;
+import edu.wpi.first.units.measure.Mass;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -96,6 +99,9 @@ public abstract class SmartOpponent extends SubsystemBase {
     protected Distance driveToPoseCollectTolerance = Inches.of(8);
     protected Distance driveToPoseScoreTolerance = Inches.of(3);
     protected String robotName = "Smart Opponent";
+    protected boolean isColliding = false;
+    protected Debouncer collisionDebouncer = new Debouncer(1, Debouncer.DebounceType.kRising);
+    protected double collisionFactor = 0;
 
     /**
      * @param id
@@ -114,7 +120,7 @@ public abstract class SmartOpponent extends SubsystemBase {
                 )));
         this.driveController = Optional.of(
                 new PPHolonomicDriveController(new PIDConstants(5.0, 0.0), new PIDConstants(5.0, 0.0)));
-        this.isJoystick =  Optional.of(new Trigger(() -> currentState.get() == States.JOYSTICK));
+        this.isJoystick = Optional.of(new Trigger(() -> currentState.get() == States.JOYSTICK));
         if
         (
                 opponentMassKG.isPresent() &&
@@ -148,12 +154,12 @@ public abstract class SmartOpponent extends SubsystemBase {
                 NetworkTableInstance.getDefault()
                         .getStructTopic("SmartDashboard/MapleSim/SimulatedRobots/Poses/ "
                                 + (alliance.equals(DriverStation.Alliance.Red) ? "Red Alliance " : "Blue Alliance ")
-                                + robotName +  " " + id + " Pose", Pose2d.struct).publish());
+                                + robotName + " " + id + " Pose", Pose2d.struct).publish());
         this.statePublisher = Optional.of(
                 NetworkTableInstance.getDefault()
                         .getStringTopic("SmartDashboard/MapleSim/SimulatedRobots/States/ "
                                 + (alliance.equals(DriverStation.Alliance.Red) ? "Red Alliance " : "Blue Alliance ")
-                                + robotName +  " " + id + " Current State").publish());
+                                + robotName + " " + id + " Current State").publish());
         this.scoreTarget = Optional.of(1);
         this.mapleADStar = Optional.of(new MapleADStar());
         setState(States.STANDBY);
@@ -245,14 +251,11 @@ public abstract class SmartOpponent extends SubsystemBase {
         detectCollision();
     }
 
-    protected boolean isColliding = false;
-    protected Debouncer collisionDebouncer = new  Debouncer(1, Debouncer.DebounceType.kRising);
-    protected double collisionFactor = 0;
     protected void detectCollision() {
         simulation.ifPresent(selfControlledSwerveDriveSimulation -> collisionFactor =
                 LinearFilter.movingAverage(50).calculate(Math.abs(
-                (Arrays.stream(selfControlledSwerveDriveSimulation.getDriveTrainSimulation().getModules()).findFirst().get().getDriveMotorSupplyCurrent()).in(Amps)
-                        - Arrays.stream(selfControlledSwerveDriveSimulation.getDriveTrainSimulation().getModules()).findAny().get().getDriveMotorAppliedVoltage().in(Volts))));
+                        (Arrays.stream(selfControlledSwerveDriveSimulation.getDriveTrainSimulation().getModules()).findFirst().get().getDriveMotorSupplyCurrent()).in(Amps)
+                                - Arrays.stream(selfControlledSwerveDriveSimulation.getDriveTrainSimulation().getModules()).findAny().get().getDriveMotorAppliedVoltage().in(Volts))));
         isColliding = collisionDebouncer.calculate(MathUtil.isNear(0.6, collisionFactor, 0.3));
     }
 
@@ -388,32 +391,33 @@ public abstract class SmartOpponent extends SubsystemBase {
             mapleADStar.get().setGoalPosition(finalPose.getTranslation());
             mapleADStar.get().runThread();
             return (Commands.run(() -> {
-                Pose2d currentPose = simulation.get().getActualPoseInSimulationWorld();
-                List<Waypoint> waypoints = mapleADStar.get().currentWaypoints;
-                Translation2d targetTranslation;
-                Rotation2d targetRotation;
-                if (!waypoints.isEmpty()) {
-                    targetTranslation = waypoints.get(0).anchor();
-                    targetRotation = currentPose.getRotation().interpolate(finalPose.getRotation(), waypoints.size());
-                    if (currentPose.getTranslation().getDistance(targetTranslation) < tolerance.in(Meters)) {
-                        waypoints.remove(0);
-                    }
-                } else {
-                    targetTranslation = finalPose.getTranslation();
-                    targetRotation = finalPose.getRotation();
-                }
-                Pose2d targetPose = new Pose2d(targetTranslation, targetRotation);
-                PathPlannerTrajectoryState state = new PathPlannerTrajectoryState();
-                state.pose = targetPose;
+                        Pose2d currentPose = simulation.get().getActualPoseInSimulationWorld();
+                        List<Waypoint> waypoints = mapleADStar.get().currentWaypoints;
+                        Translation2d targetTranslation;
+                        Rotation2d targetRotation;
+                        if (!waypoints.isEmpty()) {
+                            targetTranslation = waypoints.get(0).anchor();
+                            targetRotation = currentPose.getRotation().interpolate(finalPose.getRotation(), waypoints.size());
+                            if (currentPose.getTranslation().getDistance(targetTranslation) < tolerance.in(Meters)) {
+                                waypoints.remove(0);
+                            }
+                        } else {
+                            targetTranslation = finalPose.getTranslation();
+                            targetRotation = finalPose.getRotation();
+                        }
+                        Pose2d targetPose = new Pose2d(targetTranslation, targetRotation);
+                        PathPlannerTrajectoryState state = new PathPlannerTrajectoryState();
+                        state.pose = targetPose;
 
-                ChassisSpeeds speeds = driveController.get().calculateRobotRelativeSpeeds(
-                        currentPose,
-                        state);
-                simulation.get().runChassisSpeeds(speeds, new Translation2d(), false, false);
-            }, this)
+                        ChassisSpeeds speeds = driveController.get().calculateRobotRelativeSpeeds(
+                                currentPose,
+                                state);
+                        simulation.get().runChassisSpeeds(speeds, new Translation2d(), false, false);
+                    }, this)
                     .until(() -> {
                         List<Waypoint> waypoints = mapleADStar.get().currentWaypoints;
-                        return waypoints.isEmpty() && nearPose(finalPose, tolerance);})
+                        return waypoints.isEmpty() && nearPose(finalPose, tolerance);
+                    })
                     .finallyDo(() -> simulation.get().runChassisSpeeds(new ChassisSpeeds(), new Translation2d(), false, false)));
         } else {
             return Commands.runOnce(() -> {

@@ -5,15 +5,12 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.units.measure.Angle;
-import edu.wpi.first.wpilibj.drive.DifferentialDrive.*;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.subsystems.SwerveSubsystem;
-import swervelib.SwerveController;
 
 import static edu.wpi.first.units.Units.Degrees;
-import static edu.wpi.first.units.Units.Rotations;
 import static edu.wpi.first.wpilibj.drive.DifferentialDrive.*;
 
 public class FunDriveModes {
@@ -23,12 +20,15 @@ public class FunDriveModes {
         double maxSpeed = swerve.getSwerveDrive().getMaximumChassisVelocity();
         return Commands.runEnd(() -> {
             WheelSpeeds speeds = switch (type) {
-                case TANK -> tankDriveIK(-MathUtil.applyDeadband(driverXbox.getLeftY(), deadband), -MathUtil.applyDeadband(driverXbox.getRightY(), deadband), false);
-                case ARCADE -> arcadeDriveIK(-MathUtil.applyDeadband(driverXbox.getLeftY(), deadband), -MathUtil.applyDeadband(driverXbox.getRightX(), deadband), false);
-                case CURVATURE -> curvatureDriveIK(-MathUtil.applyDeadband(driverXbox.getLeftY(), deadband), -MathUtil.applyDeadband(driverXbox.getRightX(), deadband), false);
+                case TANK ->
+                        tankDriveIK(-MathUtil.applyDeadband(driverXbox.getLeftY(), deadband), -MathUtil.applyDeadband(driverXbox.getRightY(), deadband), false);
+                case ARCADE ->
+                        arcadeDriveIK(-MathUtil.applyDeadband(driverXbox.getLeftY(), deadband), -MathUtil.applyDeadband(driverXbox.getRightX(), deadband), false);
+                case CURVATURE ->
+                        curvatureDriveIK(-MathUtil.applyDeadband(driverXbox.getLeftY(), deadband), -MathUtil.applyDeadband(driverXbox.getRightX(), deadband), false);
             };
-            double leftSpeeds = speeds.left *  maxSpeed;
-            double rightSpeeds = speeds.right *  maxSpeed;
+            double leftSpeeds = speeds.left * maxSpeed;
+            double rightSpeeds = speeds.right * maxSpeed;
 
             states[0] = new SwerveModuleState(leftSpeeds, Rotation2d.kZero);
             states[2] = new SwerveModuleState(leftSpeeds, Rotation2d.kZero);
@@ -39,11 +39,6 @@ public class FunDriveModes {
         }, () -> {
             swerve.drive(new ChassisSpeeds());
         }, swerve);
-    }
-    public enum DifferentialType {
-        TANK,
-        ARCADE,
-        CURVATURE
     }
 
     public static Command carDrive(CarType type, SwerveSubsystem swerve, CommandXboxController driverXbox, double deadband) {
@@ -59,7 +54,7 @@ public class FunDriveModes {
             switch (type) {
                 case FWD -> {
                     states[0] = new SwerveModuleState(throttle, turn);
-                    states[1] =  new SwerveModuleState(throttle, turn);
+                    states[1] = new SwerveModuleState(throttle, turn);
                     states[2] = new SwerveModuleState(0, Rotation2d.kZero);
                     states[3] = new SwerveModuleState(0, Rotation2d.kZero);
                 }
@@ -78,6 +73,13 @@ public class FunDriveModes {
             swerve.drive(new ChassisSpeeds());
         }, swerve);
     }
+
+    public enum DifferentialType {
+        TANK,
+        ARCADE,
+        CURVATURE
+    }
+
     public enum CarType {
         FWD,
         RWD

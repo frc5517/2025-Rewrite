@@ -11,36 +11,22 @@ import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 import static edu.wpi.first.units.Units.*;
-import static frc.robot.subsystems.AddressableLEDSubsystem.PatternConstants.*;
 import static frc.robot.subsystems.AddressableLEDSubsystem.HardwareConstants.*;
+import static frc.robot.subsystems.AddressableLEDSubsystem.PatternConstants.*;
 
 public class AddressableLEDSubsystem extends SubsystemBase {
-
-    public static final class PatternConstants {
-        public static final LinearVelocity kRainbowScrollVelocity = MetersPerSecond.of(8);
-        public static final Time kBlinkOnTime = Seconds.of(1);
-        public static final Time kBlinkOffTime = Seconds.of(1);
-    }
-    public static final class HardwareConstants {
-        public static final int kLedPort = 0; // PWM
-        public static final int kLedLength = 320;
-        public static final Distance kLedSpacing = Meter.of(1.0 / 60);
-        public static final AddressableLEDBuffer buffer = new AddressableLEDBuffer(kLedLength);
-        public static final AddressableLEDBufferView underGlow = buffer.createView(0, 100);
-        public static final AddressableLEDBufferView elevatorGlow = buffer.createView(101, 319);
-    }
 
     private final AddressableLED led = new AddressableLED(kLedPort);
     private LEDPattern elevatorPattern = LEDPattern.solid(editColor(Color.kPurple));
     private LEDPattern underPattern = LEDPattern.solid(editColor(Color.kFirstBlue));
+    private LEDPattern prevElevPattern = null;
+    private LEDPattern prevUnderPattern = null;
 
     public AddressableLEDSubsystem() {
         led.setLength(buffer.getLength());
         led.start();
     }
 
-    private LEDPattern prevElevPattern = null;
-    private LEDPattern prevUnderPattern = null;
     @Override
     public void periodic() {
         if (prevElevPattern != elevatorPattern) {
@@ -63,7 +49,7 @@ public class AddressableLEDSubsystem extends SubsystemBase {
         setPattern(ledView, pattern);
     }
 
-    public void  runLED(LEDViews ledView, LEDModes ledMode) {
+    public void runLED(LEDViews ledView, LEDModes ledMode) {
         runLED(ledView, ledMode, Color.kBlack);
     }
 
@@ -95,18 +81,6 @@ public class AddressableLEDSubsystem extends SubsystemBase {
         return new Color(red, green, blue);
     }
 
-    public enum LEDViews {
-        ELEVATOR,
-        UNDER,
-        BOTH
-    }
-
-    public enum LEDModes {
-        RAINBOW,
-        SOLID,
-        OFF
-    }
-
     ///
     /// LEDPatterns
     ///
@@ -133,5 +107,32 @@ public class AddressableLEDSubsystem extends SubsystemBase {
 
     public LEDPattern off() {
         return LEDPattern.kOff;
+    }
+
+    public enum LEDViews {
+        ELEVATOR,
+        UNDER,
+        BOTH
+    }
+
+    public enum LEDModes {
+        RAINBOW,
+        SOLID,
+        OFF
+    }
+
+    public static final class PatternConstants {
+        public static final LinearVelocity kRainbowScrollVelocity = MetersPerSecond.of(8);
+        public static final Time kBlinkOnTime = Seconds.of(1);
+        public static final Time kBlinkOffTime = Seconds.of(1);
+    }
+
+    public static final class HardwareConstants {
+        public static final int kLedPort = 0; // PWM
+        public static final int kLedLength = 320;
+        public static final Distance kLedSpacing = Meter.of(1.0 / 60);
+        public static final AddressableLEDBuffer buffer = new AddressableLEDBuffer(kLedLength);
+        public static final AddressableLEDBufferView underGlow = buffer.createView(0, 100);
+        public static final AddressableLEDBufferView elevatorGlow = buffer.createView(101, 319);
     }
 }

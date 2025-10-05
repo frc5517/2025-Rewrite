@@ -253,5 +253,4 @@ public class PoseSelector extends SubsystemBase {
         POSE_2_RIGHT,
         POSE_3_RIGHT,
     }
-
 }

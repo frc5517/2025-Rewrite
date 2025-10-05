@@ -23,7 +23,6 @@ import yams.motorcontrollers.SmartMotorControllerConfig;
 import yams.motorcontrollers.SmartMotorControllerConfig.*;
 import yams.motorcontrollers.local.SparkWrapper;
 
-import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
 import static edu.wpi.first.units.Units.*;
@@ -31,79 +30,6 @@ import static frc.robot.utils.robot.Telemetry.limitPublisher;
 import static yams.mechanisms.SmartMechanism.*;
 
 public class Elevator extends SubsystemBase {
-    /**
-     * The setpoint constants for this elevator subsystem.
-     */
-    public static final class ControlConstants {
-        public static final double                  kElevatorSpeed =                .4; // Used elsewhere to run armCMD at this DutyCycle
-        public static final Distance                kAtHeightTolerance =            Inches.of(0.5); // How far from the angle is acceptable.
-
-        public static final Distance                kL1Setpoint =                   Inches.of(10);
-        public static final Distance                kL2Setpoint =                   Inches.of(6);
-        public static final Distance                kL3Setpoint =                   Inches.of(25);
-        public static final Distance                kL4Setpoint =                   Inches.of(60);
-        public static final Distance                kProcessorSetpoint =            Inches.of(2);
-        public static final Distance                kStationSetpoint =              Inches.of(1);
-        public static final Distance                kDealgaeHigh =                  Inches.of(37.5);
-        public static final Distance                kDealgaeLow =                   Inches.of(20);
-        public static final Distance                kStowSetpoint =                 Inches.of(0);
-    }
-    /**
-     * The hardware constants for this elevator subsystem.
-     */
-    public static final class HardwareConstants {
-        public static final int                     kLeadMotorID =                 14; // Lead motor is typically left for CCW+ with no inversion.
-        public static final boolean                 kLeadMotorInversion =          false;
-        public static final int                     kFollowerMotorID =              13;
-        public static final boolean                 kFollowerMotorInversion =       true;
-        public static final int                     kBottomLimitPort =              2;
-
-        public static final double                  kBottomCarriageToArmInches =    32;
-        public static final double                  kCenterToElevator =             Units.inchesToMeters(10);
-
-        public static final Distance                kTopSoftLimit =                 Meters.of(Units.inchesToMeters(63.5));
-        public static final Distance                kBottomSoftLimit =              Meters.of(Units.inchesToMeters(0.5));
-        public static final Distance                kTopHardLimit =                 Meters.of(Units.inchesToMeters(64));
-        public static final Distance                kBottomHardLimit =              Meters.of(Units.inchesToMeters(0));
-        public static final Mass                    kMass =                         Kilograms.of(Units.lbsToKilograms(10));
-        public static final MechanismGearing        kReduction =                    gearing(gearbox(3, 5), sprocket(22 / 22.0));
-        public static final Distance                kMechanismCircumference =       Meters.of(Inches.of(0.25).in(Meters) * 22);
-        public static final Time                    kClosedLoopRampRate =           Seconds.of(0.25);
-        public static final Time                    kOpenLoopRampRate =             Seconds.of(0.25);
-        public static final Current                 kStatorLimit =                  Amp.of(40);
-
-        public static final class kProfiledPID {
-            public static final double              kKp =                           24.0;
-            public static final double              kKi =                           0.0;
-            public static final double              kKd =                           0.0;
-            public static final LinearVelocity      kMaxVelocity =                  MetersPerSecond.of(5);
-            public static final LinearAcceleration  kMaxAcceleration =              MetersPerSecondPerSecond.of(10);
-        }
-        public static final ElevatorFeedforward     kFF =                           new ElevatorFeedforward(
-                0,
-                0,
-                0,
-                0);
-        public static final ControlMode             kControlMode =                  ControlMode.CLOSED_LOOP;
-        public static final TelemetryVerbosity      kVerbosity =                    TelemetryVerbosity.HIGH;
-    }
-    /**
-     * The constants used to simulate the elevator, and it's 3D location.
-     */
-    public static final class SimConstants {
-        public static final Distance                kSimStartingHeight =            Inches.of(0);
-        public static final Distance                kMaxRobotHeight =               Inches.of(70);
-        public static final Distance                kMaxRobotLength =               Inches.of(36);
-        /**
-         * Values are from robot center.
-         * Look at WPI Coordinate System if unsure.
-         */
-        public static final class kMechanismPosition {
-            public static final Distance            kXFrontPositive =               Inches.of(72);
-            public static final Distance            kYLeftPositive =                Inches.of(0.0);
-            public static final Distance            kZUpPositive =                  Inches.of(12);
-        }
-    }
     /**
      * A bottoming limit switch to prevent the elevator from continuing to drive past physical limits.
      */
@@ -127,14 +53,15 @@ public class Elevator extends SubsystemBase {
             .withGearing(HardwareConstants.kReduction)
 //      .withExternalEncoder(elevatorMotor.getAbsoluteEncoder())
             .withIdleMode(SmartMotorControllerConfig.MotorMode.BRAKE)
-            .withTelemetry("ElevatorMotor", HardwareConstants.kVerbosity)
+            .withTelemetry(HardwareConstants.kElevatorName + " Motor IDs: " +
+                    HardwareConstants.kLeadMotorID + ", " + HardwareConstants.kFollowerMotorID, HardwareConstants.kVerbosity)
             .withStatorCurrentLimit(HardwareConstants.kStatorLimit)
             .withMotorInverted(HardwareConstants.kLeadMotorInversion)
             .withClosedLoopRampRate(HardwareConstants.kClosedLoopRampRate)
             .withOpenLoopRampRate(HardwareConstants.kOpenLoopRampRate)
             .withFeedforward(HardwareConstants.kFF)
             .withControlMode(HardwareConstants.kControlMode)
-            .withFollowers(Pair.of(elevatorRightMotor, HardwareConstants.kFollowerMotorInversion)); // Needs changed if follower is removed.
+            .withFollowers(Pair.of(elevatorRightMotor, HardwareConstants.kFollowerMotorInversion)); // Needs changed if follower is removed or changed.
     /**
      * Initialize the wrapper with the driving motor and it's config.
      */
@@ -158,7 +85,7 @@ public class Elevator extends SubsystemBase {
     private final ElevatorConfig m_config = new ElevatorConfig(motor)
             .withStartingHeight(SimConstants.kSimStartingHeight)
             .withHardLimits(HardwareConstants.kBottomHardLimit, HardwareConstants.kTopHardLimit)
-            .withTelemetry("Elevator", HardwareConstants.kVerbosity)
+            .withTelemetry(HardwareConstants.kElevatorName, HardwareConstants.kVerbosity)
             .withMechanismPositionConfig(robotToMechanism)
             .withMass(HardwareConstants.kMass);
     /**
@@ -255,6 +182,81 @@ public class Elevator extends SubsystemBase {
      */
     public Command sysId() {
         return elevator.sysId(Volts.of(12), Volts.of(12).per(Second), Second.of(30));
+    }
+
+    /**
+     * The setpoint constants for this elevator subsystem.
+     */
+    public static final class ControlConstants {
+        public static final double                  kElevatorSpeed =                .4; // Used elsewhere to run armCMD at this DutyCycle
+        public static final Distance                kAtHeightTolerance =            Inches.of(0.5); // How far from the angle is acceptable.
+
+        public static final Distance                kL1Setpoint =                   Inches.of(10);
+        public static final Distance                kL2Setpoint =                   Inches.of(6);
+        public static final Distance                kL3Setpoint =                   Inches.of(25);
+        public static final Distance                kL4Setpoint =                   Inches.of(60);
+        public static final Distance                kProcessorSetpoint =            Inches.of(2);
+        public static final Distance                kStationSetpoint =              Inches.of(1);
+        public static final Distance                kDealgaeHigh =                  Inches.of(37.5);
+        public static final Distance                kDealgaeLow =                   Inches.of(20);
+        public static final Distance                kStowSetpoint =                 Inches.of(0);
+    }
+    /**
+     * The hardware constants for this elevator subsystem.
+     */
+    public static final class HardwareConstants {
+        public static final String                  kElevatorName =                     "Elevator";
+        public static final int                     kLeadMotorID =                 14; // Lead motor is typically left for CCW+ with no inversion.
+        public static final boolean                 kLeadMotorInversion =          false;
+        public static final int                     kFollowerMotorID =              13;
+        public static final boolean                 kFollowerMotorInversion =       true;
+        public static final int                     kBottomLimitPort =              2;
+
+        public static final double                  kBottomCarriageToArmInches =    32;
+        public static final double                  kCenterToElevator =             Units.inchesToMeters(10);
+
+        public static final Distance                kTopSoftLimit =                 Meters.of(Units.inchesToMeters(63.5));
+        public static final Distance                kBottomSoftLimit =              Meters.of(Units.inchesToMeters(0.5));
+        public static final Distance                kTopHardLimit =                 Meters.of(Units.inchesToMeters(64));
+        public static final Distance                kBottomHardLimit =              Meters.of(Units.inchesToMeters(0));
+        public static final Mass                    kMass =                         Kilograms.of(Units.lbsToKilograms(10));
+        public static final MechanismGearing        kReduction =                    gearing(gearbox(3, 5), sprocket(22 / 22.0));
+        public static final Distance                kMechanismCircumference =       Meters.of(Inches.of(0.25).in(Meters) * 22);
+        public static final Time                    kClosedLoopRampRate =           Seconds.of(0.25);
+        public static final Time                    kOpenLoopRampRate =             Seconds.of(0.25);
+        public static final Current                 kStatorLimit =                  Amp.of(40);
+
+        public static final class kProfiledPID {
+            public static final double              kKp =                           24.0;
+            public static final double              kKi =                           0.0;
+            public static final double              kKd =                           0.0;
+            public static final LinearVelocity      kMaxVelocity =                  MetersPerSecond.of(5);
+            public static final LinearAcceleration  kMaxAcceleration =              MetersPerSecondPerSecond.of(10);
+        }
+        public static final ElevatorFeedforward     kFF =                           new ElevatorFeedforward(
+                0,
+                0,
+                0,
+                0);
+        public static final ControlMode             kControlMode =                  ControlMode.CLOSED_LOOP;
+        public static final TelemetryVerbosity      kVerbosity =                    TelemetryVerbosity.HIGH;
+    }
+    /**
+     * The constants used to simulate the elevator, and it's 3D location.
+     */
+    public static final class SimConstants {
+        public static final Distance                kSimStartingHeight =            Inches.of(0);
+        public static final Distance                kMaxRobotHeight =               Inches.of(70);
+        public static final Distance                kMaxRobotLength =               Inches.of(36);
+        /**
+         * Values are from robot center.
+         * Look at WPI Coordinate System if unsure.
+         */
+        public static final class kMechanismPosition {
+            public static final Distance            kXFrontPositive =               Inches.of(0);
+            public static final Distance            kYLeftPositive =                Inches.of(0.0);
+            public static final Distance            kZUpPositive =                  Inches.of(24);
+        }
     }
 }
 

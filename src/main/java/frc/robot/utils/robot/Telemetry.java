@@ -4,13 +4,9 @@
 
 package frc.robot.utils.robot;
 
-import edu.wpi.first.networktables.BooleanPublisher;
-import edu.wpi.first.networktables.DoublePublisher;
-import edu.wpi.first.networktables.NetworkTableInstance;
-import edu.wpi.first.networktables.StringPublisher;
+import edu.wpi.first.networktables.*;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import swervelib.telemetry.SwerveDriveTelemetry;
-import yams.motorcontrollers.SmartMotorControllerConfig;
 
 public class Telemetry extends SubsystemBase {
     // Elevator Publishers
@@ -30,7 +26,6 @@ public class Telemetry extends SubsystemBase {
             .publish();
 
     // Robot Container Publishers
-    // SendableChoosers don't like this method
     // Pose selector publishers
     public static final StringPublisher selectedReefPosePublisher = NetworkTableInstance.getDefault()
             .getTable("SmartDashboard/RobotTelemetry/Pose Selection")
@@ -60,13 +55,12 @@ public class Telemetry extends SubsystemBase {
             .getTable("SmartDashboard/RobotTelemetry/Pose Selection")
             .getDoubleTopic("Selected reef position as a compass")
             .publish();
-    public static SmartMotorControllerConfig.TelemetryVerbosity armVerbosity = SmartMotorControllerConfig.TelemetryVerbosity.HIGH;
-    public static SmartMotorControllerConfig.TelemetryVerbosity intakeShooterVerbosity = SmartMotorControllerConfig.TelemetryVerbosity.HIGH;
     // Sets the verbosity level of robot telemetry.
     public static RobotTelemetry robotVerbosity = RobotTelemetry.HIGH;
     // Verbosity of other mechanisms.
+    // Verbosity of YAMS mechanisms is set in their respective subsystems.
+    // This is my preferred way for now.
     public static SwerveDriveTelemetry.TelemetryVerbosity swerveVerbosity = SwerveDriveTelemetry.TelemetryVerbosity.HIGH;
-    public static SmartMotorControllerConfig.TelemetryVerbosity elevatorVerbosity = SmartMotorControllerConfig.TelemetryVerbosity.HIGH;
 
     public enum RobotTelemetry {
         /*
@@ -87,6 +81,9 @@ public class Telemetry extends SubsystemBase {
 
     // Drive Publishers
     // All drive telemetry is published courtesy of YAGSL!
+
+    // Elevator Publishers
+    // All elevator telemetry is published courtesy of YAMS!
 
     // Arm Publishers
     // All arm telemetry is published courtesy of YAMS!

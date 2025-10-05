@@ -13,9 +13,9 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.robot.subsystems.AddressableLEDSubsystem.LEDModes;
+import frc.robot.subsystems.AddressableLEDSubsystem.LEDViews;
 import frc.robot.utils.robot.PoseSelector;
-
-import frc.robot.subsystems.AddressableLEDSubsystem.*;
 
 import java.util.function.BooleanSupplier;
 
@@ -90,7 +90,8 @@ public class ControlStructure extends SubsystemBase {
 
     /**
      * Runs a command sequence to automatically drive to selected pose and score on the reef.
-     * @param level which level to score the coral.
+     *
+     * @param level      which level to score the coral.
      * @param speedBoost whether to increase speed or not.
      * @return a {@link Command} sequence to automatically drive to selected pose and score on the reef.
      */
@@ -101,6 +102,7 @@ public class ControlStructure extends SubsystemBase {
 
     /**
      * Runs a command sequence to automatically collect from selected coral station slot.
+     *
      * @param speedBoost whether to increase speed or not.
      * @return a {@link Command} sequence to automatically collect from selected coral station slot.
      */
@@ -111,6 +113,7 @@ public class ControlStructure extends SubsystemBase {
 
     /**
      * Runs a command that moves structures to coral station poses and finishes when a coral is detected.
+     *
      * @return a {@link Command} that moves structures to coral station poses and finishes when a coral is detected.
      */
     public Command collect() {
@@ -121,6 +124,7 @@ public class ControlStructure extends SubsystemBase {
 
     /**
      * Runs a command that moves structures to {@link ScoreLevels} and shoots when all subsystems are ready.
+     *
      * @param level which level to score the coral.
      * @return a {@link Command} that moves structures to {@link ScoreLevels} and shoots when all subsystems are ready.
      */
@@ -132,7 +136,8 @@ public class ControlStructure extends SubsystemBase {
 
     /**
      * Runs a command that moves structures to {@link ScoreLevels} and shoots when all systems are ready.
-     * @param level which level to score the coral.
+     *
+     * @param level        which level to score the coral.
      * @param readyToScore whether the systems are ready to score.
      * @return a {@link Command} that moves structures to {@link ScoreLevels} and shoots when all subsystems are ready.
      */
@@ -145,6 +150,7 @@ public class ControlStructure extends SubsystemBase {
 
     /**
      * Runs a command that only shoots if arm and elevator are at their setpoints.
+     *
      * @param level the reef level being scored.
      * @return a {@link Command} that only shoots if arm and elevator are at their setpoints.
      */
@@ -152,7 +158,7 @@ public class ControlStructure extends SubsystemBase {
         // TODO Testing telemetry Data, readyToScore isn't updating
         SmartDashboard.putBoolean("Arm at Angle", arm.atAngle(getArmSetpoint(level)));
         SmartDashboard.putBoolean("Elevator at Height", elevator.atHeight(getElevatorSetpoint(level)));
-        SmartDashboard.putBoolean("Swerve not moving", swerve.isMoving(0.01));
+        SmartDashboard.putBoolean("Swerve not moving", !swerve.isMoving(0.05));
         SmartDashboard.putBoolean("Swerve done running", !swerve.toPoseIsRunning());
         return () -> arm.atAngle(getArmSetpoint(level))
                 && elevator.atHeight(getElevatorSetpoint(level))
@@ -161,6 +167,7 @@ public class ControlStructure extends SubsystemBase {
 
     /**
      * Runs a command that sets all LEDs to scrolling rainbow.
+     *
      * @return a {@link Command} that sets all LEDs to scrolling rainbow.
      */
     private Command setLEDRainbow() {
@@ -171,6 +178,7 @@ public class ControlStructure extends SubsystemBase {
 
     /**
      * The arm setpoint for a given reef level.
+     *
      * @param levels which setpoint level.
      * @return the arm setpoint for a given reef level.
      */
@@ -185,6 +193,7 @@ public class ControlStructure extends SubsystemBase {
 
     /**
      * The elevator setpoint for a given reef level.
+     *
      * @param levels which setpoint level.
      * @return the elevator setpoint for a given reef level.
      */

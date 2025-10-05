@@ -17,12 +17,12 @@ public class ToFSensor {
     private final int id;
     private final CAN can;
     private final CANData data;
-    private double sensorValue;
-
     private final ScheduledExecutorService scheduler;
+    private double sensorValue;
 
     /**
      * Creates the sensor.
+     *
      * @param id CAN ID
      */
     public ToFSensor(int id) {
@@ -44,6 +44,7 @@ public class ToFSensor {
 
     /**
      * Updates the {@link CANData}
+     *
      * @return if it was a success
      */
     private boolean receiveLatest() {
@@ -60,6 +61,7 @@ public class ToFSensor {
     /**
      * Set's the period for reading from the can bus. Default: 20 ms
      * The Roborio can bus runs at a period of 20 ms.
+     *
      * @param period scheduler period
      */
     private void setUpdatePeriod(Time period) {

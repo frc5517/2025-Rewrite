@@ -14,11 +14,10 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.subsystems.*;
-import frc.robot.subsystems.SwerveSubsystem;
-import frc.robot.utils.robot.InputStructure;
-import frc.robot.utils.robot.PoseSelector;
 import frc.robot.utils.maplesim.opponents.reefscape.kitbot.KitBot;
 import frc.robot.utils.maplesim.opponents.reefscape.kitbotpro.KitBotPro;
+import frc.robot.utils.robot.InputStructure;
+import frc.robot.utils.robot.PoseSelector;
 
 import java.io.File;
 
@@ -87,6 +86,7 @@ public class RobotContainer {
 
     /**
      * Gets the selected autonomous command.
+     *
      * @return the selected {@link Command}.
      */
     public Command getAutonomousCommand() {
