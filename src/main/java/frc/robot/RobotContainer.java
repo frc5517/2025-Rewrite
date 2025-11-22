@@ -6,6 +6,7 @@
 package frc.robot;
 
 import com.pathplanner.lib.auto.AutoBuilder;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj.RobotBase;
@@ -18,6 +19,9 @@ import frc.robot.utils.maplesim.opponents.reefscape.kitbot.KitBot;
 import frc.robot.utils.maplesim.opponents.reefscape.kitbotpro.KitBotPro;
 import frc.robot.utils.robot.InputStructure;
 import frc.robot.utils.robot.PoseSelector;
+import org.ironmaple.simulation.SimulatedArena;
+import org.ironmaple.simulation.seasonspecific.reefscape2025.Arena2025Reefscape;
+import org.ironmaple.simulation.seasonspecific.reefscape2025.ReefscapeReefSimulation;
 
 import java.io.File;
 

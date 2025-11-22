@@ -2,6 +2,8 @@ package frc.robot.utils.robot;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.StringPublisher;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
@@ -37,10 +39,11 @@ import java.util.function.Supplier;
  * The class uses a mode-based binding system where only the selected control scheme
  * is active at any given time, preventing control conflicts between different input devices.
  */
+@SuppressWarnings("UnusedReturnValue")
 public class InputStructure {
 
     // Control chooser for dashboard
-    private final SendableChooser<BindingType> controlChooser = new SendableChooser<>();
+    private static final SendableChooser<BindingType> controlChooser = new SendableChooser<>();
     // Control input devices
     private final CommandXboxController driverXbox;
     private final CommandXboxController operatorXbox;
@@ -53,6 +56,8 @@ public class InputStructure {
     private final IntakeShooter intakeShooter;
     private final ControlStructure structure;
     private final PoseSelector poseSelector;
+
+    private StringPublisher inputOverride;
 
     /**
      * Constructs a new RobotControlBindings instance.
@@ -73,7 +78,6 @@ public class InputStructure {
             PoseSelector poseSelector) {
 
         this.driverXbox = new CommandXboxController(0);
-        ;
         this.operatorXbox = new CommandXboxController(1);
         this.driverRightStick = new CommandJoystick(0);
         this.driverLeftStick = new CommandJoystick(1);
@@ -90,8 +94,14 @@ public class InputStructure {
      * This method should be called once during robot initialization.
      */
     public void init() {
-        // Initialize control chooser
-        initializeControlChooser();
+        // Setup code side chooser swapping
+        String chooserPath = "RobotTelemetry/Control Chooser";
+        SmartDashboard.putData(chooserPath, controlChooser);
+
+        this.inputOverride = NetworkTableInstance.getDefault()
+                .getTable("SmartDashboard/" + chooserPath)
+                .getStringTopic("selected")
+                .publish();
 
         // Initialize all standard binding configurations
         singleXboxBindings();
@@ -107,26 +117,6 @@ public class InputStructure {
 
         // Log initialization
         System.out.println("Robot control bindings initialized successfully");
-    }
-
-    /**
-     * Initializes the control chooser and adds it to SmartDashboard.
-     * Add new driver options here when creating personalized control schemes.
-     */
-    private void initializeControlChooser() {
-        controlChooser.setDefaultOption("Single Xbox", BindingType.SINGLE_XBOX);
-        controlChooser.addOption("Dual Xbox", BindingType.DUAL_XBOX);
-        controlChooser.addOption("Single Stick", BindingType.SINGLE_STICK);
-        controlChooser.addOption("Dual Stick", BindingType.DUAL_STICK);
-        controlChooser.addOption("Single Stick and Xbox", BindingType.SINGLE_STICK_XBOX);
-        controlChooser.addOption("Dual Stick and Xbox", BindingType.DUAL_STICK_XBOX);
-        controlChooser.addOption("Testing", BindingType.TESTING);
-
-        // Add custom driver options here
-        // Controls should have standard names. Something "DriverAndOperator" should be fine.
-        // Example: controlChooser.addOption("Konnor and Kaden", BindingType.KONNOR_AND_KADEN);
-
-        SmartDashboard.putData("RobotTelemetry/Control Type", controlChooser);
     }
 
     /**
@@ -156,7 +146,7 @@ public class InputStructure {
      */
     private void singleXboxBindings() {
         // Mode trigger - only active when this binding mode is selected
-        Trigger isMode = new Trigger(() -> controlChooser.getSelected() == BindingType.SINGLE_XBOX);
+        Trigger isMode = BindingType.SINGLE_XBOX.isMode;
         new ControlStream(
                 () -> -1 * driverXbox.getLeftX(),
                 () -> -1 * driverXbox.getLeftY(),
@@ -217,8 +207,7 @@ public class InputStructure {
      * - Right Trigger: Shoot (manual override)
      */
     private void dualXboxBindings() {
-
-        Trigger isMode = new Trigger(() -> controlChooser.getSelected() == BindingType.DUAL_XBOX);
+        Trigger isMode = BindingType.DUAL_XBOX.isMode;
 
         // Configure driver Xbox controls using helper method
         typicalDriverXboxControls(isMode);
@@ -231,7 +220,7 @@ public class InputStructure {
      */
     private void singleStickBindings() {
         // Mode trigger - only active when this binding mode is selected
-        Trigger isMode = new Trigger(() -> controlChooser.getSelected() == BindingType.SINGLE_STICK);
+        Trigger isMode = BindingType.SINGLE_STICK.isMode;
 
         // Configure dual stick controls using helper method
         typicalDualStickControls(isMode);
@@ -242,7 +231,7 @@ public class InputStructure {
      */
     private void dualStickBindings() {
         // Mode trigger - only active when this binding mode is selected
-        Trigger isMode = new Trigger(() -> controlChooser.getSelected() == BindingType.DUAL_STICK);
+        Trigger isMode = BindingType.DUAL_STICK.isMode;
 
         // Configure dual stick controls using helper method
         typicalDualStickControls(isMode);
@@ -262,7 +251,7 @@ public class InputStructure {
      */
     private void singleStickXboxBindings() {
         // Mode trigger - only active when this binding mode is selected
-        Trigger isMode = new Trigger(() -> controlChooser.getSelected() == BindingType.SINGLE_STICK_XBOX);
+        Trigger isMode = BindingType.SINGLE_STICK_XBOX.isMode;
 
         // Configure dual stick controls using helper method
         typicalSingleStickControls(isMode);
@@ -278,7 +267,7 @@ public class InputStructure {
      */
     private void dualStickXboxBindings() {
         // Mode trigger - only active when this binding mode is selected
-        Trigger isMode = new Trigger(() -> controlChooser.getSelected() == BindingType.DUAL_STICK_XBOX);
+        Trigger isMode = BindingType.DUAL_STICK_XBOX.isMode;
         // Configure dual stick controls using helper method
         typicalDualStickControls(isMode);
 
@@ -294,7 +283,7 @@ public class InputStructure {
      */
     private void testBindings() {
         // Mode trigger - only active when this binding mode is selected
-        Trigger isMode = new Trigger(() -> controlChooser.getSelected() == BindingType.TESTING);
+        Trigger isMode = BindingType.TESTING.isMode;
         new ControlStream(
                 () -> -1 * driverXbox.getLeftX(),
                 () -> -1 * driverXbox.getLeftY(),
@@ -304,7 +293,15 @@ public class InputStructure {
                 .withElevatorManual(() -> -1.0 * driverXbox.getLeftY())
                 .withArmManual(() -> -1.0 * driverXbox.getRightY())
                 .withIntakeShooter(driverXbox.leftBumper(), true)
-                .withIntakeShooter(driverXbox.rightBumper(), false);
+                .withIntakeShooter(driverXbox.rightBumper(), false)
+                .withChangeInput(BindingType.SINGLE_XBOX, driverXbox.back());
+    }
+
+    /**  Define Student Binding Methods here  */
+
+    private void newStudentBinding() {
+        Trigger isMode = BindingType.NEWSTUDENTBINDINGTYPE.isMode;
+        new ControlStream(isMode);
     }
 
     /**
@@ -313,8 +310,8 @@ public class InputStructure {
      *
      * @param isMode The mode trigger to gate these bindings
      */
-    private void typicalDriverXboxControls(Trigger isMode) {
-        new ControlStream(
+    private ControlStream typicalDriverXboxControls(Trigger isMode) {
+        return new ControlStream(
                 () -> -1 * driverXbox.getLeftX(),
                 () -> -1 * driverXbox.getLeftY(),
                 () -> -1 * driverXbox.getRightX(),
@@ -338,8 +335,8 @@ public class InputStructure {
      *
      * @param isMode The mode trigger to gate these bindings
      */
-    private void typicalOperatorXboxControls(Trigger isMode) {
-        new ControlStream(isMode)
+    private ControlStream typicalOperatorXboxControls(Trigger isMode) {
+        return new ControlStream(isMode)
                 /* Reef Pose Selection */
                 .withReefSelection(operatorXbox.povUp(), PoseSelector.ReefSide.NORTH)
                 .withReefSelection(operatorXbox.povUpRight(), PoseSelector.ReefSide.NORTHEAST)
@@ -371,8 +368,8 @@ public class InputStructure {
      *
      * @param isMode The mode trigger to gate these bindings
      */
-    private void typicalSingleStickControls(Trigger isMode) {
-        new ControlStream(
+    private ControlStream typicalSingleStickControls(Trigger isMode) {
+        return new ControlStream(
                 () -> -1 * driverRightStick.getY(),
                 () -> -1 * driverRightStick.getX(),
                 () -> -1 * driverRightStick.getTwist(),
@@ -387,8 +384,8 @@ public class InputStructure {
      *
      * @param isMode The mode trigger to gate these bindings
      */
-    private void typicalDualStickControls(Trigger isMode) {
-        new ControlStream(
+    private ControlStream typicalDualStickControls(Trigger isMode) {
+        return new ControlStream(
                 () -> -1 * driverRightStick.getY(),
                 () -> -1 * driverRightStick.getX(),
                 () -> -1 * driverLeftStick.getTwist(),
@@ -396,12 +393,6 @@ public class InputStructure {
 
         // Dual stick bindings <!>
     }
-
-    /*
-     *
-     *  Set Custom controls below this block
-     *
-     */
 
     /**
      * Gets the currently selected binding type.
@@ -426,31 +417,57 @@ public class InputStructure {
         /*
         All controls using a single xbox controller.
          */
-        SINGLE_XBOX,
+        SINGLE_XBOX("Single Xbox", true),
         /*
         Classic driver and operator setup on two xbox controllers.
          */
-        DUAL_XBOX,
+        DUAL_XBOX("Dual Xbox"),
         /*
         All controls on a single joystick.
          */
-        SINGLE_STICK,
+        SINGLE_STICK("Single Stick"),
         /*
         All controls on two joysticks one driver.
          */
-        DUAL_STICK,
+        DUAL_STICK("Dual Stick"),
         /*
         Classic driver and operator with the driver using a single joystick.
          */
-        SINGLE_STICK_XBOX,
+        SINGLE_STICK_XBOX("Single Stick and Xbox"),
         /*
         Classic driver and operator with the driver using dual joysticks.
          */
-        DUAL_STICK_XBOX,
+        DUAL_STICK_XBOX("Dual Stick and Xbox"),
         /*
         Control mode used for testing controls subject to constant change
          */
-        TESTING
+        TESTING("Testing"),
+
+        /**  Define Student BindingTypes here  */
+
+        NEWSTUDENTBINDINGTYPE("New Student Binding Type");
+
+        // BindType Name
+        public final String name;
+        public final Trigger isMode;
+
+        BindingType(String name, boolean isDefault) {
+            this.name = name;
+            this.isMode = new Trigger(() -> controlChooser.getSelected() == this);
+            if (isDefault) {
+                controlChooser.setDefaultOption(name, this);
+            } else {
+                controlChooser.addOption(name, this);
+            }
+        }
+
+        /**
+         * Constructor for BindingType
+         * @param name The name of the control type, used in publishing.
+         */
+        BindingType(String name) {
+            this(name, false);
+        }
     }
 
 
@@ -530,6 +547,18 @@ public class InputStructure {
             /* Subsystem control constants */
             this.ELEVATOR_SPEED = Optional.of(Elevator.ControlConstants.kElevatorSpeed);
             this.ARM_SPEED = Optional.of(Arm.ControlConstants.kArmSpeed);
+        }
+
+        ControlStream withChangeInput(BindingType bindingType, Trigger changeInput) {
+            if (isMode.isPresent()) {
+                isMode.get().and(changeInput).onTrue(Commands.runOnce(() -> {
+                    inputOverride.set(bindingType.name);
+                }));
+            } else {
+                DriverStation.reportWarning("isMode not found, Change Input failed.", true);
+            }
+
+            return this;
         }
 
         /*  Operator Type Controls  */
@@ -1046,8 +1075,5 @@ public class InputStructure {
             this.inputStream = Optional.of(inputStream);
             return this;
         }
-
-        /* Miscellaneous */
-
     }
 }

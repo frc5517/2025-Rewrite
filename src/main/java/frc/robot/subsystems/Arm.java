@@ -8,7 +8,9 @@ import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.units.measure.*;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import yams.gearing.GearBox;
 import yams.gearing.MechanismGearing;
+import yams.gearing.Sprocket;
 import yams.mechanisms.config.ArmConfig;
 import yams.mechanisms.config.MechanismPositionConfig;
 import yams.motorcontrollers.SmartMotorController;
@@ -197,7 +199,7 @@ public class Arm extends SubsystemBase {
         public static final Mass kArmMass = Pounds.of(3);
         public static final Distance kArmLength = Inches.of(17);
         public static final Angle kHorizontalZero = Degrees.of(0); // -173
-        public static final MechanismGearing kReduction = gearing(gearbox(3, 4, 5), sprocket(16 / 38.0));
+        public static final MechanismGearing kReduction = new MechanismGearing(GearBox.fromReductionStages(3, 4, 5), Sprocket.fromStages("16:38"));
         public static final Time kClosedLoopRampRate = Seconds.of(0.25);
         public static final Time kOpenLoopRampRate = Seconds.of(0.25);
         public static final Current kStatorLimit = Amp.of(40);
