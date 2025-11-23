@@ -20,6 +20,8 @@ import frc.robot.utils.maplesim.opponents.reefscape.kitbotpro.KitBotPro;
 import frc.robot.utils.robot.InputStructure;
 import frc.robot.utils.robot.PoseSelector;
 import org.ironmaple.simulation.SimulatedArena;
+import org.ironmaple.simulation.seasonspecific.crescendo2024.Arena2024Crescendo;
+import org.ironmaple.simulation.seasonspecific.evergreen.ArenaEvergreen;
 import org.ironmaple.simulation.seasonspecific.reefscape2025.Arena2025Reefscape;
 import org.ironmaple.simulation.seasonspecific.reefscape2025.ReefscapeReefSimulation;
 
@@ -53,6 +55,7 @@ public class RobotContainer {
      * Called once on robot startup.
      */
     public RobotContainer() {
+//        SimulatedArena.overrideInstance(new Arena2024Crescendo());
         DriverStation.silenceJoystickConnectionWarning(true);
         bindings.init();
         setupAutonomous();

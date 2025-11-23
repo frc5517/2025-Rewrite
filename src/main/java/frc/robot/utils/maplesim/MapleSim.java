@@ -230,9 +230,9 @@ public class MapleSim extends SubsystemBase {
     }
 
     private void setupMatchData() {
-        if (ReefscapeReefSimulation.getInstance().isPresent()) {
-            reef = ReefscapeReefSimulation.getInstance().get();
-        }
+//        if (ReefscapeReefSimulation.getInstance().isPresent()) {
+//            reef = ReefscapeReefSimulation.getInstance().get();
+//        }
         matchTimer.start();
         clearMatchData();
     }
@@ -248,8 +248,8 @@ public class MapleSim extends SubsystemBase {
         coralOnL3Blue = getAtoL(DriverStation.Alliance.Blue, 2);
         coralOnL4Blue = getAtoL(DriverStation.Alliance.Blue, 3);
 
-        reefBluePublisher.set(Arrays.deepToString(reef.getBranches(DriverStation.Alliance.Blue)));
-        reefRedPublisher.set(Arrays.deepToString(reef.getBranches(DriverStation.Alliance.Red)));
+//        reefBluePublisher.set(Arrays.deepToString(reef.getBranches(DriverStation.Alliance.Blue)));
+//        reefRedPublisher.set(Arrays.deepToString(reef.getBranches(DriverStation.Alliance.Red)));
 
         coralScoredInL1RedPublisher.set(coralOnL1Red);
         coralScoredInL2RedPublisher.set(coralOnL2Red);
@@ -295,19 +295,19 @@ public class MapleSim extends SubsystemBase {
     }
 
     private int getAtoL(DriverStation.Alliance alliance, int level) {
-        return
-                reef.getBranches(alliance)[0][level] +
-                        reef.getBranches(alliance)[1][level] +
-                        reef.getBranches(alliance)[2][level] +
-                        reef.getBranches(alliance)[3][level] +
-                        reef.getBranches(alliance)[4][level] +
-                        reef.getBranches(alliance)[5][level] +
-                        reef.getBranches(alliance)[6][level] +
-                        reef.getBranches(alliance)[7][level] +
-                        reef.getBranches(alliance)[8][level] +
-                        reef.getBranches(alliance)[9][level] +
-                        reef.getBranches(alliance)[10][level] +
-                        reef.getBranches(alliance)[11][level];
+        return 0;
+//                reef.getBranches(alliance)[0][level] +
+//                        reef.getBranches(alliance)[1][level] +
+//                        reef.getBranches(alliance)[2][level] +
+//                        reef.getBranches(alliance)[3][level] +
+//                        reef.getBranches(alliance)[4][level] +
+//                        reef.getBranches(alliance)[5][level] +
+//                        reef.getBranches(alliance)[6][level] +
+//                        reef.getBranches(alliance)[7][level] +
+//                        reef.getBranches(alliance)[8][level] +
+//                        reef.getBranches(alliance)[9][level] +
+//                        reef.getBranches(alliance)[10][level] +
+//                        reef.getBranches(alliance)[11][level];
     }
 
     @Override

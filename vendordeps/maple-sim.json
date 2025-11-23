@@ -8,7 +8,7 @@
         "https://shenzhen-robotics-alliance.github.io/maple-sim/vendordep/repos/releases",
         "https://repo1.maven.org/maven2"
     ],
-    "jsonUrl": "https://shenzhen-robotics-alliance.github.io/maple-sim/vendordep/maple-sim.json",
+    "jsonUrl": "https://shenzhen-robotics-alliance.github.io/maple-sim/vendordep/",
     "javaDependencies": [
         {
             "groupId": "org.ironmaple",
